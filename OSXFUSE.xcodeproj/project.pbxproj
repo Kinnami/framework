@@ -28,6 +28,7 @@
 		28D526C70EA8342500B7CF7B /* osxfuse_objc_dtrace.d */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.dtrace; path = osxfuse_objc_dtrace.d; sourceTree = "<group>"; };
 		32DBCF5E0370ADEE00C91783 /* OSXFUSE_Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; lineEnding = 0; path = OSXFUSE_Prefix.pch; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objc; };
 		43470F5A1C83C549001A6CC4 /* GMAvailability.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GMAvailability.h; sourceTree = "<group>"; };
+		876F1E3E24FED061000F9606 /* GNUmakefile */ = {isa = PBXFileReference; lastKnownFileType = text; path = GNUmakefile; sourceTree = "<group>"; };
 		8DC2EF5A0486A6940098B216 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FF4337480D27697A00554C02 /* GMFinderInfo.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; lineEnding = 0; path = GMFinderInfo.h; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
 		FF4337490D27697A00554C02 /* GMFinderInfo.m */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 2; lastKnownFileType = sourcecode.c.objc; lineEnding = 0; path = GMFinderInfo.m; sourceTree = "<group>"; tabWidth = 2; xcLanguageSpecificationIdentifier = xcode.lang.objc; };
@@ -90,6 +91,7 @@
 		08FB77AEFE84172EC02AAC07 /* OSXFUSE */ = {
 			isa = PBXGroup;
 			children = (
+				876F1E3E24FED061000F9606 /* GNUmakefile */,
 				32C88DFF0371C24200C91783 /* DTrace */,
 				43470F5A1C83C549001A6CC4 /* GMAvailability.h */,
 				FF6C40200D300D7E00E51DD2 /* GMDataBackedFileDelegate.h */,

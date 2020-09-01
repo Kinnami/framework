@@ -46,3 +46,23 @@
     #define GM_AVAILABLE(_version)
 
 #endif /* !GM_VERSION_MIN_REQUIRED */
+
+/*****************************************************************************/
+
+#if !defined (__APPLE__)
+
+/*****************************************************************************/
+/*	PORTABILITY MODIFICATIONS FOR NON-APPLE PLATFORMS:
+*/
+typedef UInt32                          FourCharCode;
+typedef FourCharCode                    ResType;
+typedef SInt16                          ResID;
+
+#if !defined (ENOATTR)
+#define ENOATTR						ENODATA					/* Linux getxattr(2) etc returns ENODATA. ENOATTR has been removed, although it used to be defined like this https://linux.die.net/man/2/lgetxattr */
+#endif	/* !defined (ENOATTR) */
+
+/*****************************************************************************/
+
+#endif	/* !defined (__APPLE__) */
+

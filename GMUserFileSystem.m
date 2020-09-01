@@ -55,16 +55,26 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+
+#if defined (__linux__)
+#include <sys/statfs.h>
+#endif	/* defined (__linux__) */
+
 #include <sys/sysctl.h>
 #include <sys/utsname.h>
+
+#if defined (__APPLE__) || defined (__FREEBSD__)
 #include <sys/vnode.h>
+#endif	/* defined (__APPLE__) || defined (__FREEBSD__) */
 
 #import <Foundation/Foundation.h>
 #import "GMFinderInfo.h"
 #import "GMResourceFork.h"
 #import "GMDataBackedFileDelegate.h"
 
+#if defined (__APPLE__) || defined (__FREEBSD__)
 #import "GMDTrace.h"
+#endif	/* defined (__APPLE__) || defined (__FREEBSD__) */
 
 #define GM_EXPORT __attribute__((visibility("default")))
 
@@ -516,7 +526,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
 }
 
 #pragma mark Finder Info, Resource Forks and HFS headers
-
+#if defined (__APPLE__)
 - (NSDictionary *)finderAttributesAtPath:(NSString *)path {
   if (OSXFUSE_OBJC_DELEGATE_ENTRY_ENABLED()) {
     OSXFUSE_OBJC_DELEGATE_ENTRY(DTRACE_STRING(path));
@@ -594,6 +604,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   }
   return NO;
 }
+#endif	/* defined (__APPLE__) */
 
 - (BOOL)isDirectoryIconAtPath:(NSString *)path dirPath:(NSString **)dirPath {
   NSString* name = [path lastPathComponent];
@@ -644,6 +655,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   return attributeFound ? [info data] : nil;
 }
 
+#if defined (__APPLE__)
 // If the given attribs dictionary contains any ResourceFork attributes then 
 // returns NSData for the ResourceFork; otherwise returns nil.
 - (NSData *)resourceDataForAttributes:(NSDictionary *)attribs {
@@ -674,6 +686,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   }
   return attributeFound ? [fork data] : nil;
 }
+#endif	/* defined (__APPLE__) */
 
 #pragma mark Internal Stat Operations
 
@@ -689,7 +702,9 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   NSNumber* blocksize = [attributes objectForKey:kGMUserFileSystemVolumeFileSystemBlockSizeKey];
   assert(blocksize);
   stbuf->f_bsize = (uint32_t)[blocksize unsignedIntValue];
+  #if !defined (__linux__)
   stbuf->f_iosize = (int32_t)[blocksize intValue];
+  #endif	/* !defined (_lLinux__) */
   
   // Size in blocks
   NSNumber* size = [attributes objectForKey:NSFileSystemSize];
@@ -743,7 +758,11 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   } else if ([fileType isEqualToString:NSFileTypeSymbolicLink]) {
     stbuf->st_mode |= S_IFLNK;
   } else {
+#if defined (__APPLE__)
     *error = [GMUserFileSystem errorWithCode:EFTYPE];
+#else
+    *error = [GMUserFileSystem errorWithCode:EINVAL];		/* Note: Linux & FreeBSD mknod(2) returns this for an invalid file type */
+#endif	/* defined (__APPLE__) */
     return NO;
   }
   
@@ -759,6 +778,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   NSNumber* nlink = [attributes objectForKey:NSFileReferenceCount];
   stbuf->st_nlink = [nlink longValue];
 
+#if !defined (__linux__)
   // flags
   NSNumber* flags = [attributes objectForKey:kGMUserFileSystemFileFlagsKey];
   if (flags) {
@@ -774,6 +794,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
       stbuf->st_flags |= UF_APPEND;
     }
   }
+#endif	/* defined (__linux__) */
 
   // Note: We default atime, ctime to mtime if it is provided.
   NSDate* mdate = [attributes objectForKey:NSFileModificationDate];
@@ -783,10 +804,17 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
     const double nanoseconds_dp = ((seconds_dp - t_sec) * kNanoSecondsPerSecond); 
     const long t_nsec = (nanoseconds_dp > 0 ) ? nanoseconds_dp : 0;
 
+#if defined (__linux__)
+    stbuf->st_mtim.tv_sec = t_sec;
+    stbuf->st_mtim.tv_nsec = t_nsec;
+    stbuf->st_atim = stbuf->st_mtim;  // Default to mtime
+    stbuf->st_ctim = stbuf->st_mtim;  // Default to mtime
+#else
     stbuf->st_mtimespec.tv_sec = t_sec;
     stbuf->st_mtimespec.tv_nsec = t_nsec;
     stbuf->st_atimespec = stbuf->st_mtimespec;  // Default to mtime
     stbuf->st_ctimespec = stbuf->st_mtimespec;  // Default to mtime
+#endif	/* defined (__linux__) */
   }
   NSDate* adate = [attributes objectForKey:kGMUserFileSystemFileAccessDateKey];
   if (adate) {
@@ -794,8 +822,13 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
     const time_t t_sec = (time_t) seconds_dp;
     const double nanoseconds_dp = ((seconds_dp - t_sec) * kNanoSecondsPerSecond); 
     const long t_nsec = (nanoseconds_dp > 0 ) ? nanoseconds_dp : 0;
+#if defined (__linux__)
+    stbuf->st_atim.tv_sec = t_sec;
+    stbuf->st_atim.tv_nsec = t_nsec;
+#else
     stbuf->st_atimespec.tv_sec = t_sec;
     stbuf->st_atimespec.tv_nsec = t_nsec;
+#endif	/* defined (__linux__) */
   }    
   NSDate* cdate = [attributes objectForKey:kGMUserFileSystemFileChangeDateKey];
   if (cdate) {
@@ -803,11 +836,16 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
     const time_t t_sec = (time_t) seconds_dp;
     const double nanoseconds_dp = ((seconds_dp - t_sec) * kNanoSecondsPerSecond); 
     const long t_nsec = (nanoseconds_dp > 0 ) ? nanoseconds_dp : 0;
+#if defined (__linux__)
+    stbuf->st_ctim.tv_sec = t_sec;
+    stbuf->st_ctim.tv_nsec = t_nsec;
+#else
     stbuf->st_ctimespec.tv_sec = t_sec;
     stbuf->st_ctimespec.tv_nsec = t_nsec;
+#endif	/* defined (__linux__) */
   }
 
-#ifdef _DARWIN_USE_64_BIT_INODE
+#if defined (_DARWIN_USE_64_BIT_INODE) || defined (__FREEBSD__)
   NSDate* bdate = [attributes objectForKey:NSFileCreationDate];
   if (bdate) {
     const double seconds_dp = [bdate timeIntervalSince1970];
@@ -817,7 +855,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
     stbuf->st_birthtimespec.tv_sec = t_sec;
     stbuf->st_birthtimespec.tv_nsec = t_nsec;
   }
-#endif
+#endif	/* defined (_DARWIN_USE_64_BIT_INODE) || defined (__FREEBSD__) */
 
   // File size
   // Note that the actual file size of a directory depends on the internal 
@@ -1177,7 +1215,9 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   }
   
   if ([self supportsAllocateFileAtPath]) {
+#if defined (__APPLE__)
     if ((options & PREALLOCATE) == PREALLOCATE) {
+#endif	/* defined (__APPLE__) */
       if ([[internal_ delegate] respondsToSelector:@selector(preallocateFileAtPath:userData:options:offset:length:error:)]) {
         return [[internal_ delegate] preallocateFileAtPath:path
                                                   userData:userData
@@ -1187,9 +1227,11 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
                                                      error:error];
       }
     }
+#if defined (__APPLE__)
     *error = [GMUserFileSystem errorWithCode:ENOTSUP];
     return NO;
   }
+#endif	/* defined (__APPLE__) */
   *error = [GMUserFileSystem errorWithCode:ENOSYS];
   return NO;
 }
@@ -1563,11 +1605,13 @@ static void* fusefm_init(struct fuse_conn_info* conn) {
   }
   @catch (id exception) { }
 
+#if defined (__APPLE__)
   SET_CAPABILITY(conn, FUSE_CAP_ALLOCATE, [fs enableAllocate]);
   SET_CAPABILITY(conn, FUSE_CAP_XTIMES, [fs enableExtendedTimes]);
   SET_CAPABILITY(conn, FUSE_CAP_VOL_RENAME, [fs enableSetVolumeName]);
   SET_CAPABILITY(conn, FUSE_CAP_CASE_INSENSITIVE, ![fs enableCaseSensitiveNames]);
   SET_CAPABILITY(conn, FUSE_CAP_EXCHANGE_DATA, [fs enableExchangeData]);
+#endif	/* defined (__APPLE__) */
 
   [pool release];
   return fs;
@@ -1921,6 +1965,7 @@ static int fusefm_exchange(const char* p1, const char* p2, unsigned long opts) {
   return ret;  
 }
 
+#if defined (__APPLE__)
 static int fusefm_statfs_x(const char* path, struct statfs* stbuf) {
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
   int ret = -ENOENT;
@@ -1960,6 +2005,7 @@ static int fusefm_setvolname(const char* name) {
   [pool release];
   return ret;
 }
+#endif	/* defined (__APPLE__) */
 
 static int fusefm_fgetattr(const char *path, struct stat *stbuf, 
                            struct fuse_file_info* fi) {
@@ -1988,6 +2034,7 @@ static int fusefm_getattr(const char *path, struct stat *stbuf) {
   return fusefm_fgetattr(path, stbuf, nil);
 }
 
+#if defined (__APPLE__)
 static int fusefm_getxtimes(const char* path, struct timespec* bkuptime, 
                             struct timespec* crtime) {  
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
@@ -2032,6 +2079,7 @@ static int fusefm_getxtimes(const char* path, struct timespec* bkuptime,
   [pool release];
   return ret;
 }
+#endif	/* defined (__APPLE__) */
 
 static NSDate* dateWithTimespec(const struct timespec* spec) {
   const NSTimeInterval time_ns = spec->tv_nsec;
@@ -2039,6 +2087,7 @@ static NSDate* dateWithTimespec(const struct timespec* spec) {
   return [NSDate dateWithTimeIntervalSince1970:time_sec];
 }
 
+#if defined (__APPLE__)
 static NSDictionary* dictionaryWithAttributes(const struct setattr_x* attrs) {
   NSMutableDictionary* dict = [NSMutableDictionary dictionary];
   if (SETATTR_WANTS_MODE(attrs)) {
@@ -2111,6 +2160,7 @@ static int fusefm_fsetattr_x(const char* path, struct setattr_x* attrs,
 static int fusefm_setattr_x(const char* path, struct setattr_x* attrs) {
   return fusefm_fsetattr_x(path, attrs, nil);
 }
+#endif	/* defined (__APPLE__) */
 
 static int fusefm_listxattr(const char *path, char *list, size_t size)
 {
@@ -2251,17 +2301,23 @@ static struct fuse_operations fusefm_oper = {
   .write = fusefm_write,
   .fsync = fusefm_fsync,
   .fallocate = fusefm_fallocate,
+#if defined (__APPLE__)
   .exchange = fusefm_exchange,
-  
+#endif	/* defined (__APPLE__) */
+
   // Getting and Setting Attributes
+#if defined (__APPLE__)
   .statfs_x = fusefm_statfs_x,
   .setvolname = fusefm_setvolname,
+#endif	/* defined (__APPLE__) */
   .getattr = fusefm_getattr,
   .fgetattr = fusefm_fgetattr,
+#if defined (__APPLE__)
   .getxtimes = fusefm_getxtimes,
   .setattr_x = fusefm_setattr_x,
   .fsetattr_x = fusefm_fsetattr_x,
-  
+#endif	/* defined (__APPLE__) */
+
   // Extended Attributes
   .listxattr = fusefm_listxattr,
   .getxattr = fusefm_getxattr,
@@ -2300,10 +2356,14 @@ static struct fuse_operations fusefm_oper = {
   memset(&statfs_buf, 0, sizeof(statfs_buf));
   int ret = statfs([[internal_ mountPath] UTF8String], &statfs_buf);
   if (ret == 0) {
+#if defined (__APPLE__)
     if (statfs_buf.f_fssubtype == (short)(-1)) {
       // We use a special indicator value from FUSE in the f_fssubtype field to
       // indicate that the currently mounted filesystem is dead. It probably
       // crashed and was never unmounted.
+#else
+#warning "Needs implementation. Determine if there's a deadfs at the mountpoint */
+#endif	/* defined (__APPLE__) */
       ret = unmount([[internal_ mountPath] UTF8String], 0);
       if (ret != 0) {
         NSString* description = @"Unable to unmount an existing 'dead' filesystem.";
@@ -2352,7 +2412,9 @@ static struct fuse_operations fusefm_oper = {
           return;
         }
       }
+#if defined (__APPLE__)
     }
+#endif	/* defined (__APPLE__) */
   }
 
   // Check mount path as necessary.
