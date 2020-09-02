@@ -34,7 +34,7 @@ $(FRAMEWORK_NAME)_OBJCFLAGS 	=
 
 # Linux requires libfuse
 ifeq ($(GNUSTEP_HOST_OS), linux-gnu)
-$(FRAMEWORK_NAME)_LDFLAGS		= -v -lfuse
+$(FRAMEWORK_NAME)_LDFLAGS		= -lfuse
 endif
 
 # Framework principal class
