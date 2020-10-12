@@ -392,24 +392,25 @@ typedef enum {
 - (BOOL)invalidateItemAtPath:(NSString *)path error:(NSError **)error {
   int ret = -ENOTCONN;
 
-  struct fuse* handle = [internal_ handle];
-  if (handle) {
+  if ([internal_ status] == GMUserFileSystem_MOUNTED) {		/* CJEC, 2-Aug-19: TODO: OSXFUSE 3.8.3 BUG: Add this line of code to OSXFUSE in GITHUB to prevent invalidation when not mounted */
+    struct fuse* handle = [internal_ handle];
+    if (handle) {
 #if defined (__APPLE__)
-    ret = fuse_invalidate_path(handle, [path fileSystemRepresentation]);
+      ret = fuse_invalidate_path(handle, [path fileSystemRepresentation]);
     
-    // Note: fuse_invalidate_path() may return -ENOENT to indicate that there
-    // was no entry to be invalidated, e.g., because the path has not been seen
-    // before or has been forgotten. This should not be considered to be an
-    // error.
-    if (ret == -ENOENT) {
-      ret = 0;
-    }
+      // Note: fuse_invalidate_path() may return -ENOENT to indicate that there
+      // was no entry to be invalidated, e.g., because the path has not been seen
+      // before or has been forgotten. This should not be considered to be an
+      // error.
+      if (ret == -ENOENT) {
+        ret = 0;
+      }
 #else
 #warning "ERROR: (Temporarily disabled #error) Needs implementation for fuse_invalidate_path()"
-		ret = -ENOTSUP;
+		  ret = -ENOTSUP;
 #endif	/* defined (__APPLE__) */
+    }
   }
-
   if (ret != 0) {
     if (error) {
       *error = [GMUserFileSystem errorWithCode:-ret];
@@ -1664,8 +1665,18 @@ static void* fusefm_init(struct fuse_conn_info* conn) {
   SET_CAPABILITY(conn, FUSE_CAP_VOL_RENAME, [fs enableSetVolumeName]);
   SET_CAPABILITY(conn, FUSE_CAP_CASE_INSENSITIVE, ![fs enableCaseSensitiveNames]);
   SET_CAPABILITY(conn, FUSE_CAP_EXCHANGE_DATA, [fs enableExchangeData]);
+
 #endif	/* defined (__APPLE__) */
 
+	/* CJEC, 9-Jul-19: Enable atomic O_TRUNC support in open().
+  
+    	Note: Currently (OSXFUSE 3.8.3) this is not needed as -[BoxAFSFuseFD truncateToOffset: error:]
+      			provides an alternative when mounted with the "nosyncwrites" mount option
+   
+     CJEC, 12-Oct-20: TODO: Do we need this capability for fuse on Linux, FreeBSD, etc.?
+  */
+  // SET_CAPABILITY(conn, FUSE_CAP_ATOMIC_O_TRUNC, true);
+	
   [pool release];
   return fs;
 }
