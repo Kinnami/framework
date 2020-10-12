@@ -5,6 +5,7 @@
 /src-external/dazuko*/
 /src-external/dazuko
 /src-external/libCopyFile/Darwin/
+/OSXFUSE.framework/
 /Documentation/
 /bin/
 /lib/
