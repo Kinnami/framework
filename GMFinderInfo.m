@@ -38,6 +38,10 @@
 
 #import "GMFinderInfo.h"
 
+#if !defined (__APPLE__)
+#include <arpa/inet.h>								/* For htonl() */
+#endif	/* !defined (__APPLE__) */
+
 // All fields should be in network order. See CoreServices/CarbonCore/Finder.h
 // for details on what flags and extendedFlags can be.
 #pragma pack(push, 1)

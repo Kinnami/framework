@@ -164,6 +164,47 @@ typedef enum {
 - (void)setDelegate:(id)delegate;
 @end
 
+/* /sbin/umount is a setuid command on Linux and FreeBSD because umount2(2) and umount(2) respectively
+	require root priviledges. Executing the command avoids the need for setuid permission for this program.
+  Interestingly, /sbin/umount is not a setuid command on OS X/Darwin.
+*/
+static int	Unmount (NSArray * a_poaoArgs)
+	{
+  NSString *	poszUnmount;
+	NSTask *		poTaskUnmount;
+  int					iExitCode;
+  int					iErrno;
+
+#if defined (__linux__)
+	poszUnmount = @"/bin/umount";
+#else
+  poszUnmount = @"/sbin/umount";		/* OS X/Darwin, FreeBSD, ... */
+#endif
+	poTaskUnmount = [NSTask launchedTaskWithLaunchPath: poszUnmount arguments: a_poaoArgs];
+	[poTaskUnmount waitUntilExit];
+  iExitCode = [poTaskUnmount terminationStatus];
+  switch (iExitCode)				/* Try to simulate the return codes of unmount2(2)/unmount(2) system call */
+  	{
+    case 0:
+    	{
+      iErrno = 0;
+      break;
+      }
+    case 1:										/* Linux: /bin/umount returns 1 when not mounted. CJEC, 13-Oct-20: TODO: What about OS X/Darwin and FreeBSD? */
+    	{
+      iErrno = EINVAL;
+      break;
+      }
+    default:
+    	{
+      NSLog (@"UNEXPECTED: '%@': exit code %i. Returning EPERM", poszUnmount, iExitCode);
+      iErrno = EPERM;					/* Use an errno value that cann't be handled and generates an error */
+      break;
+      }
+    }
+  return iErrno;
+  }
+
 @implementation GMUserFileSystemInternal
 
 - (id)init {
@@ -383,9 +424,7 @@ typedef enum {
 - (void)unmount {
   if ([internal_ status] == GMUserFileSystem_MOUNTED) {
     NSArray* args = [NSArray arrayWithObjects:@"-v", [internal_ mountPath], nil];
-    NSTask* unmountTask = [NSTask launchedTaskWithLaunchPath:@"/sbin/umount" 
-                                                   arguments:args];
-    [unmountTask waitUntilExit];
+    Unmount (args);
   }
 }
 
@@ -1116,7 +1155,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
     NSData* data = nil;  // Synthesized data that we provide a file delegate for.
 
     // Is it an Icon\r file that we handle?
-    if ([self isDirectoryIconAtPath:path dirPath:nil]) {
+    if ([self isDirectoryIconAtPath:path dirPath: NULL]) {
       data = [NSData data];  // The Icon\r file is empty.
     }
 
@@ -2010,6 +2049,7 @@ static int fusefm_fallocate(const char* path, int mode, off_t offset, off_t leng
   return ret;
 }
 
+#if defined (__APPLE__)
 static int fusefm_exchange(const char* p1, const char* p2, unsigned long opts) {
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
   int ret = -ENOSYS;
@@ -2029,7 +2069,6 @@ static int fusefm_exchange(const char* p1, const char* p2, unsigned long opts) {
   return ret;  
 }
 
-#if defined (__APPLE__)
 static int fusefm_statfs_x(const char* path, struct statfs* stbuf) {
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
   int ret = -ENOENT;
@@ -2095,7 +2134,7 @@ static int fusefm_fgetattr(const char *path, struct stat *stbuf,
 }
 
 static int fusefm_getattr(const char *path, struct stat *stbuf) {
-  return fusefm_fgetattr(path, stbuf, nil);
+  return fusefm_fgetattr(path, stbuf, NULL);
 }
 
 #if defined (__APPLE__)
@@ -2259,8 +2298,14 @@ static int fusefm_listxattr(const char *path, char *list, size_t size)
   return ret;
 }
 
+#if defined (__APPLE__)
 static int fusefm_getxattr(const char *path, const char *name, char *value,
                            size_t size, uint32_t position) {
+#else
+static int fusefm_getxattr(const char *path, const char *name, char *value,
+                           size_t size) {
+  uint32_t	position = 0;				/* Only OS X/Darwin has this parameter */
+#endif	/* defined (__APPLE__) */
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
   int ret = -ENOATTR;
   
@@ -2289,8 +2334,14 @@ static int fusefm_getxattr(const char *path, const char *name, char *value,
   return ret;
 }
 
+#if defined (__APPLE__)
 static int fusefm_setxattr(const char *path, const char *name, const char *value,
                            size_t size, int flags, uint32_t position) {
+#else
+static int fusefm_setxattr(const char *path, const char *name, const char *value,
+                           size_t size, int flags) {
+  uint32_t position	= 0;								/* Only OS X/Darwin has this parameter */
+#endif	/* defined (__APPLE__) */
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
   int ret = -EPERM;
   @try {
@@ -2403,6 +2454,9 @@ static struct fuse_operations fusefm_oper = {
   NSNotificationCenter* center = [NSNotificationCenter defaultCenter];
   [center postNotificationName:kGMUserFileSystemMountFailed object:self
                       userInfo:userInfo];
+#if !defined (__APPLE__)
+  NSLog (@"ERROR: Mount FAILED. %@ %@ IN %@", error, userInfo, self);			/* Also log it, in case we're not using NSNotificationCenter (EG because we're not using NSApplication, which on GNUstep requires a GUI application) */
+#endif	/* !defined (__APPLE__) */
 }
 
 - (void)mount:(NSDictionary *)args {
@@ -2414,6 +2468,8 @@ static struct fuse_operations fusefm_oper = {
   NSArray* options = [args objectForKey:@"options"];
   BOOL isThreadSafe = [internal_ isThreadSafe];
   BOOL shouldForeground = [[args objectForKey:@"shouldForeground"] boolValue];
+	BOOL fNotMounted	= YES;
+  int  iErrno;
 
   // Maybe there is a dead FUSE file system stuck on our mount point?
   struct statfs statfs_buf;
@@ -2425,34 +2481,56 @@ static struct fuse_operations fusefm_oper = {
       // We use a special indicator value from FUSE in the f_fssubtype field to
       // indicate that the currently mounted filesystem is dead. It probably
       // crashed and was never unmounted.
+      // This is a better check than relying on unmount(2) returning EINVAL, but
+      // only applies to OSXFUSE file systems
+      // https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/unmount.2.html
       ret = unmount([[internal_ mountPath] UTF8String], 0);
+      iErrno = ret < 0 ? errno : 0;
+      fNotMounted = iErrno == 0;
 #else
 #if defined (__FREEBSD__)
 #warning "ERROR: (Temporarily disabled #error) Needs implementation on FreeBSD. Determine if there's a deadfs at the mountpoint */
-      ret = unmount([[internal_ mountPath] UTF8String], 0);
+      {
+//    ret = unmount([[internal_ mountPath] UTF8String], 0);	/* https://www.man7.org/linux/man-pages/man2/umount.2.html */
+//    iErrno = ret < 0 ? errno : 0;
+      NSArray* args = [NSArray arrayWithObjects:@"-v", [internal_ mountPath], nil];
+      iErrno = Unmount (args);	/* Can't use unmount(2) without root priviledge */
+      fNotMounted = (iErrno == 0) || (iErrno == EINVAL);	/* unmount(2) returns EINVAL if not in the mount table */
 #else
 #if defined (__linux__)
 #warning "ERROR: (Temporarily disabled #error) Needs implementation on Linux. Determine if there's a deadfs at the mountpoint */
-      ret = umount2([[internal_ mountPath] UTF8String], 0);
+      {
+//    ret = umount2([[internal_ mountPath] UTF8String], 0);	/* https://www.man7.org/linux/man-pages/man2/umount.2.html */
+//    iErrno = ret < 0 ? errno : 0;
+      NSArray* args = [NSArray arrayWithObjects:@"-v", [internal_ mountPath], nil];
+      iErrno = Unmount (args);	/* Can't use unmount(2) without root priviledge */
+      fNotMounted = (iErrno == 0) || (iErrno == EINVAL);	/* unmount2(2) returns EINVAL if not a mount point (among other reasons) */
 #endif	/* defined (__linux__) */
 #endif	/* defined (__FREEBSD__) */
 #endif	/* defined (__APPLE__) */
 
-      if (ret != 0) {
-        NSString* description = @"Unable to unmount an existing 'dead' filesystem.";
+      if (iErrno != 0) {
+        NSString* description = [NSString stringWithFormat: @"Unable to unmount an existing 'dead?' filesystem at '%@'. errno %i, %s", [internal_ mountPath], iErrno, strerror (iErrno)];
         NSDictionary* userInfo =
           [NSDictionary dictionaryWithObjectsAndKeys:
            description, NSLocalizedDescriptionKey,
-           [GMUserFileSystem errorWithCode:errno], NSUnderlyingErrorKey,
+           [GMUserFileSystem errorWithCode:iErrno], NSUnderlyingErrorKey,
            nil];
         NSError* error = [NSError errorWithDomain:kGMUserFileSystemErrorDomain
                                              code:GMUserFileSystem_ERROR_UNMOUNT_DEADFS
                                          userInfo:userInfo];
-        [self postMountError:error];
-        [pool release];
-        return;
+        if (fNotMounted)
+          NSLog (@"WARNING: %@", description);
+        else
+          {
+          [self postMountError:error];
+          [pool release];
+          return;
+          }
       }
+#if defined (__APPLE__)
       if ([[internal_ mountPath] hasPrefix:@"/Volumes/"]) {
+        // OS X/Darwin only:
         // Directories for mounts in @"/Volumes/..." are removed automatically
         // when an unmount occurs. This is an asynchronous process, so we need
         // to wait until the directory is removed before proceeding. Otherwise,
@@ -2485,9 +2563,8 @@ static struct fuse_operations fusefm_oper = {
           return;
         }
       }
-#if defined (__APPLE__)
-    }
 #endif	/* defined (__APPLE__) */
+    }
   }
 
   // Check mount path as necessary.
@@ -2508,7 +2585,7 @@ static struct fuse_operations fusefm_oper = {
   // filesystems. This leads to deadlock when we re-enter our mounted FUSE file
   // system. Once initialized it seems to work fine.
   NSFileManager* fileManager = [[NSFileManager alloc] init];
-  [fileManager contentsOfDirectoryAtPath:@"/Volumes" error:nil];
+  [fileManager contentsOfDirectoryAtPath:@"/Volumes" error:NULL];
   [fileManager release];
 
   NSMutableArray* arguments = 

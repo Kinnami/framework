@@ -38,6 +38,10 @@
 
 #import "GMResourceFork.h"
 
+#if !defined (__APPLE__)
+#include <arpa/inet.h>								/* For htonl() */
+#endif	/* !defined (__APPLE__) */
+
 // The format for a resource fork is as follows ('+' means one-or-more):
 //
 // ResourceForkHeader
