@@ -40,6 +40,12 @@
 
 #import "GMUserFileSystem.h"
 
+/* FUSE_USE_VERSION: Which version of the libFuse API for which platform?
+		https://stackoverflow.com/questions/49739325/what-exactly-is-the-difference-between-fuse2-and-fuse3
+		OSXFUSE 3.8.3 implements the Fuse 2.6 API
+    Ubuntu Linux 20.04 implements the Fuse 2.9 API (Reported by fusermount(1) -V)
+    GhostBSD (FreeBSD 12.2-STABLE) implements the Fuse 2.9 API (Estimated from fuse.h. Needs confirmation)
+*/
 #define FUSE_USE_VERSION 26
 #include <fuse.h>
 #include <fuse/fuse_lowlevel.h>
@@ -109,9 +115,12 @@ GM_EXPORT NSString* const kGMUserFileSystemVolumeSupportsExtendedDatesKey = @"kG
 GM_EXPORT NSString* const kGMUserFileSystemVolumeMaxFilenameLengthKey = @"kGMUserFileSystemVolumeMaxFilenameLengthKey";
 GM_EXPORT NSString* const kGMUserFileSystemVolumeFileSystemBlockSizeKey = @"kGMUserFileSystemVolumeFileSystemBlockSizeKey";
 
-// TODO: Remove comment on EXPORT if/when setvolname is supported.
-/* GM_EXPORT */ NSString* const kGMUserFileSystemVolumeSupportsSetVolumeNameKey = @"kGMUserFileSystemVolumeSupportsSetVolumeNameKey";
-/* GM_EXPORT */ NSString* const kGMUserFileSystemVolumeNameKey = @"kGMUserFileSystemVolumeNameKey";
+GM_EXPORT NSString* const kGMUserFileSystemVolumeSupportsSetVolumeNameKey = @"kGMUserFileSystemVolumeSupportsSetVolumeNameKey";
+GM_EXPORT NSString* const kGMUserFileSystemVolumeNameKey = @"kGMUserFileSystemVolumeNameKey";
+
+/* CJEC, 14-Oct-20: Added to OSXFUSE 3.8.3 */
+GM_EXPORT NSString* const kGMUserFileSystemFileTypeFIFOSpecialKey = @"kGMUserFileSystemFileTypeFIFOSpecialKey";
+GM_EXPORT NSString* const kGMUserFileSystemFileTypeWhiteoutSpecialKey = @"kGMUserFileSystemFileTypeWhiteoutSpecialKey";
 
 // FinderInfo and ResourceFork keys
 GM_EXPORT NSString* const kGMUserFileSystemFinderFlagsKey = @"kGMUserFileSystemFinderFlagsKey";
@@ -197,7 +206,7 @@ static int	Unmount (NSArray * a_poaoArgs)
       }
     default:
     	{
-      NSLog (@"UNEXPECTED: '%@': exit code %i. Returning EPERM", poszUnmount, iExitCode);
+      NSLog (@"Fuse: UNEXPECTED: '%@': exit code %i. Returning EPERM", poszUnmount, iExitCode);
       iErrno = EPERM;					/* Use an errno value that cann't be handled and generates an error */
       break;
       }
@@ -268,7 +277,7 @@ static int	Unmount (NSArray * a_poaoArgs)
   for (int i = 0; i < sizeof(deprecatedMethods) / sizeof(SEL); ++i) {
     SEL sel = deprecatedMethods[i];
     if ([delegate_ respondsToSelector:sel]) {
-      NSLog(@"*** WARNING: GMUserFileSystem delegate implements deprecated "
+      NSLog(@"Fuse: WARNING: GMUserFileSystem delegate implements deprecated "
             @"selector: %@", NSStringFromSelector(sel));
     }
   }
@@ -470,20 +479,27 @@ static int	Unmount (NSArray * a_poaoArgs)
   return (GMUserFileSystem *)context->private_data;
 }
 
+#if defined (__APPLE__)
+/* Fuse on OS X/Darwin does not mount file systems synchronously. Instead, the OS X/Darwin Fuse-specific
+		ioctl(FUSEDEVIOCGETHANDSHAKECOMPLETE) indicates when mount has finished.
+*/
 #define FUSEDEVIOCGETHANDSHAKECOMPLETE _IOR('F', 2, u_int32_t)
 static const int kMaxWaitForMountTries = 50;
 static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
+#endif	/* defined (__APPLE__) */
 
 - (void)waitUntilMounted:(NSNumber *)fileDescriptor {
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-  
+
+#if defined (__APPLE__)
   for (int i = 0; i < kMaxWaitForMountTries; ++i) {
     UInt32 handShakeComplete = 0;
     int ret = ioctl([fileDescriptor intValue], FUSEDEVIOCGETHANDSHAKECOMPLETE,
                     &handShakeComplete);
     if (ret == 0 && handShakeComplete) {
       [internal_ setStatus:GMUserFileSystem_MOUNTED];
-      
+#endif	/* defined (__APPLE__) */
+
       // Successfully mounted, so post notification.
       NSDictionary* userInfo = 
         [NSDictionary dictionaryWithObjectsAndKeys:
@@ -494,13 +510,19 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
                           userInfo:userInfo];
       [pool release];
       return;
+#if defined (__APPLE__)
     }
+    else
+      if (ret < 0)
+        NSLog (@"Fuse: ERROR: ioctl (FUSEDEVIOCGETHANDSHAKECOMPLETE %lu) FAILED. errno %i, %s IN %@", FUSEDEVIOCGETHANDSHAKECOMPLETE, errno, strerror (errno), self);
     usleep(kWaitForMountUSleepInterval);
   }
   
   // Tried for a long time and no luck :-(
   // Unmount and report failure?
+  [self postMountError: [NSError errorWithDomain: NSPOSIXErrorDomain code: EIO userInfo: nil]];
   [pool release];
+#endif	/* defined (__APPLE__) */
 }
 
 - (void)fuseInit {
@@ -540,7 +562,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
       [internal_ setSupportsSetVolumeName:[supports boolValue]];
     }
   }
-  
+  // For Fuse for OS X/Darwin:
   // The mount point won't actually show up until this winds its way
   // back through the kernel after this routine returns. In order to post
   // the kGMUserFileSystemDidMount notification we start a new thread that will
@@ -775,6 +797,43 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   return YES;
 }
 
+- (BOOL)fillStatvfsBuffer:(struct statvfs *)stbuf
+                 forPath:(NSString *)path
+                   error:(NSError **)error {
+  NSDictionary* attributes = [self attributesOfFileSystemForPath:path error:error];
+  if (!attributes) {
+    return NO;
+  }
+  
+  // Block size
+  NSNumber* blocksize = [attributes objectForKey:kGMUserFileSystemVolumeFileSystemBlockSizeKey];
+  assert(blocksize);
+  stbuf->f_bsize = (uint32_t)[blocksize unsignedIntValue];
+  
+  // Size in blocks
+  NSNumber* size = [attributes objectForKey:NSFileSystemSize];
+  assert(size);
+  stbuf->f_blocks = (uint64_t)([size unsignedLongLongValue] / stbuf->f_bsize);
+  
+  // Number of free / available blocks
+  NSNumber* freeSize = [attributes objectForKey:NSFileSystemFreeSize];
+  assert(freeSize);
+  stbuf->f_bavail = stbuf->f_bfree =
+    (uint64_t)([freeSize unsignedLongLongValue] / stbuf->f_bsize);
+  
+  // Number of nodes
+  NSNumber* numNodes = [attributes objectForKey:NSFileSystemNodes];
+  assert(numNodes);
+  stbuf->f_files = (uint64_t)[numNodes unsignedLongLongValue];
+  
+  // Number of free / available nodes
+  NSNumber* freeNodes = [attributes objectForKey:NSFileSystemFreeNodes];
+  assert(freeNodes);
+  stbuf->f_ffree = (uint64_t)[freeNodes unsignedLongLongValue];
+  
+  return YES;
+}
+
 - (BOOL)fillStatBuffer:(struct stat *)stbuf 
                forPath:(NSString *)path 
               userData:(id)userData
@@ -802,6 +861,18 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
     stbuf->st_mode |= S_IFREG;
   } else if ([fileType isEqualToString:NSFileTypeSymbolicLink]) {
     stbuf->st_mode |= S_IFLNK;
+  } else if ([fileType isEqualToString:NSFileTypeBlockSpecial]) {
+    stbuf->st_mode |= S_IFBLK;
+  } else if ([fileType isEqualToString:NSFileTypeCharacterSpecial]) {
+    stbuf->st_mode |= S_IFCHR;
+  } else if ([fileType isEqualToString:NSFileTypeSocket]) {
+    stbuf->st_mode |= S_IFSOCK;
+  } else if ([fileType isEqualToString:kGMUserFileSystemFileTypeFIFOSpecialKey]) {
+    stbuf->st_mode |= S_IFIFO;
+#if defined (__APPLE__) || defined (__FREEBSD__)
+  } else if ([fileType isEqualToString:kGMUserFileSystemFileTypeWhiteoutSpecialKey]) {
+    stbuf->st_mode |= S_IFWHT;
+#endif	/* defined (__APPLE__) || defined (__FREEBSD__) */
   } else {
 #if defined (__APPLE__)
     *error = [GMUserFileSystem errorWithCode:EFTYPE];
@@ -823,7 +894,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   NSNumber* nlink = [attributes objectForKey:NSFileReferenceCount];
   stbuf->st_nlink = [nlink longValue];
 
-#if !defined (__linux__)
+#if defined (__APPLE__) || defined (__FREEBSD__)
   // flags
   NSNumber* flags = [attributes objectForKey:kGMUserFileSystemFileFlagsKey];
   if (flags) {
@@ -839,7 +910,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
       stbuf->st_flags |= UF_APPEND;
     }
   }
-#endif	/* defined (__linux__) */
+#endif	/* defined (__APPLE__) || defined (__FREEBSD__) */
 
   // Note: We default atime, ctime to mtime if it is provided.
   NSDate* mdate = [attributes objectForKey:NSFileModificationDate];
@@ -891,6 +962,9 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   }
 
 #if defined (_DARWIN_USE_64_BIT_INODE) || defined (__FREEBSD__)
+  /* CJEC, 14-Oct-20: TODO: Linux has statx(2) which provides struct statx.stx_btime
+                            but this is not supported by Fuse 2.6 API
+  */
   NSDate* bdate = [attributes objectForKey:NSFileCreationDate];
   if (bdate) {
     const double seconds_dp = [bdate timeIntervalSince1970];
@@ -2110,6 +2184,31 @@ static int fusefm_setvolname(const char* name) {
 }
 #endif	/* defined (__APPLE__) */
 
+/* Theis method is not used by Fuse on OS X/Darwin because
+		fusefm_statfs_x() is a better alternative
+		and is used instead.
+*/
+static int	fusefm_statfs (const char * a_pszPath, struct statvfs * a_pStatVFS)
+	{
+  NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
+  int ret = -ENOENT;
+  @try {
+    memset(a_pStatVFS, 0, sizeof(struct statvfs));
+    NSError* error = nil;
+    GMUserFileSystem* fs = [GMUserFileSystem currentFS];
+    if ([fs fillStatvfsBuffer:a_pStatVFS
+                     forPath:[NSString stringWithUTF8String:a_pszPath]
+                       error:&error]) {
+      ret = 0;
+    } else {
+      MAYBE_USE_ERROR(ret, error);
+    }
+  }
+  @catch (id exception) { }
+  [pool release];
+  return ret;
+  }
+
 static int fusefm_fgetattr(const char *path, struct stat *stbuf, 
                            struct fuse_file_info* fi) {
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
@@ -2138,6 +2237,10 @@ static int fusefm_getattr(const char *path, struct stat *stbuf) {
 }
 
 #if defined (__APPLE__)
+/* CJEC, 14-Oct-20: TODO: Investigate something similar to this for Linux & FreeBSD in newer Fuse APIs.
+														Linux has statx(2) which provides more information, like getattrlist(2) on
+                            OS X/Darwin
+*/
 static int fusefm_getxtimes(const char* path, struct timespec* bkuptime, 
                             struct timespec* crtime) {  
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
@@ -2265,6 +2368,121 @@ static int fusefm_setattr_x(const char* path, struct setattr_x* attrs) {
 }
 #endif	/* defined (__APPLE__) */
 
+/* These methods are not used by Fuse on OS X/Darwin because
+		fusefm_setattr_x() and fusefm_fsetattr_x() are better alternatives
+		and are used instead.
+    
+    Note: It appears that btime and ctime cannot be set on Linux or FreeBSD.
+
+    CJEC, 14-Oct-20: TODO: FreeBSD: What about chflags(2)
+*/
+static int	fusefm_utimens (const char * a_pszPath, const struct timespec a_TimeSpecs [2])
+	{
+  NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
+  int ret = 0;  // Note: Return success by default.
+
+  @try {
+    NSError* error = nil;
+    NSMutableDictionary* attribs = [NSMutableDictionary dictionary];
+    GMUserFileSystem* fs = [GMUserFileSystem currentFS];
+
+    [attribs setObject:dateWithTimespec(&(a_TimeSpecs [0])) forKey:kGMUserFileSystemFileAccessDateKey];
+    [attribs setObject:dateWithTimespec(&(a_TimeSpecs [1])) forKey:NSFileModificationDate];
+    if ([fs setAttributes:attribs
+             ofItemAtPath:[NSString stringWithUTF8String:a_pszPath]
+                 userData:nil
+                    error:&error]) {
+      ret = 0;
+    } else {
+      MAYBE_USE_ERROR(ret, error);
+    }
+  }
+  @catch (id exception) { }
+  [pool release];
+  return ret;
+  }
+
+static int	fusefm_chmod (const char * a_pszPath, mode_t a_Mode)
+	{
+  NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
+  int ret = 0;  // Note: Return success by default.
+
+  @try {
+    NSError* error = nil;
+    NSMutableDictionary* attribs = [NSMutableDictionary dictionary];
+    GMUserFileSystem* fs = [GMUserFileSystem currentFS];
+
+    [attribs setObject: [NSNumber numberWithLong: (long) a_Mode] forKey: NSFilePosixPermissions];
+    if ([fs setAttributes:attribs
+             ofItemAtPath:[NSString stringWithUTF8String:a_pszPath]
+                 userData:nil
+                    error:&error]) {
+      ret = 0;
+    } else {
+      MAYBE_USE_ERROR(ret, error);
+    }
+  }
+  @catch (id exception) { }
+  [pool release];
+  return ret;
+  }
+
+static int	fusefm_chown (const char * a_pszPath, uid_t a_UID, gid_t a_GID)
+	{
+  NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
+  int ret = 0;  // Note: Return success by default.
+
+  @try {
+    NSError* error = nil;
+    NSMutableDictionary* attribs = [NSMutableDictionary dictionary];
+    GMUserFileSystem* fs = [GMUserFileSystem currentFS];
+
+    [attribs setObject: [NSNumber numberWithLong: (long) a_UID] forKey: NSFileOwnerAccountID];
+    [attribs setObject: [NSNumber numberWithLong: (long) a_GID] forKey: NSFileGroupOwnerAccountID];
+    if ([fs setAttributes:attribs
+             ofItemAtPath:[NSString stringWithUTF8String:a_pszPath]
+                 userData:nil
+                    error:&error]) {
+      ret = 0;
+    } else {
+      MAYBE_USE_ERROR(ret, error);
+    }
+  }
+  @catch (id exception) { }
+  [pool release];
+  return ret;
+  }
+
+static int	fusefm_truncate (const char * a_pszPath, off_t a_cbSize)
+	{
+  return fusefm_ftruncate (a_pszPath, a_cbSize, NULL);
+  }
+
+static int	fusefm_ftruncate (const char * a_pszPath, off_t a_cbSize, struct fuse_file_info * a_pFuseFileInfo)
+	{
+  NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
+  int ret = 0;  // Note: Return success by default.
+
+  @try {
+    NSError* error = nil;
+    NSMutableDictionary* attribs = [NSMutableDictionary dictionary];
+    GMUserFileSystem* fs = [GMUserFileSystem currentFS];
+
+    [attribs setObject: [NSNumber numberWithLongLong: a_cbSize] forKey: NSFileSize];
+    if ([fs setAttributes:attribs
+             ofItemAtPath:[NSString stringWithUTF8String:a_pszPath]
+                 userData:(a_pFuseFileInfo ? (id)(uintptr_t)a_pFuseFileInfo->fh : nil)
+                    error:&error]) {
+      ret = 0;
+    } else {
+      MAYBE_USE_ERROR(ret, error);
+    }
+  }
+  @catch (id exception) { }
+  [pool release];
+  return ret;
+  }
+
 static int fusefm_listxattr(const char *path, char *list, size_t size)
 {
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
@@ -2384,6 +2602,7 @@ static int fusefm_removexattr(const char *path, const char *name) {
 
 #undef MAYBE_USE_ERROR
 
+#pragma mark struct fuse_operations
 static struct fuse_operations fusefm_oper = {
   .init = fusefm_init,
   .destroy = fusefm_destroy,
@@ -2424,6 +2643,8 @@ static struct fuse_operations fusefm_oper = {
 #if defined (__APPLE__)
   .statfs_x = fusefm_statfs_x,
   .setvolname = fusefm_setvolname,
+#else
+  .statfs = fusefm_statfs,
 #endif	/* defined (__APPLE__) */
   .getattr = fusefm_getattr,
   .fgetattr = fusefm_fgetattr,
@@ -2431,6 +2652,14 @@ static struct fuse_operations fusefm_oper = {
   .getxtimes = fusefm_getxtimes,
   .setattr_x = fusefm_setattr_x,
   .fsetattr_x = fusefm_fsetattr_x,
+#else
+  /* Standard attribute methods. Not used on OS X/Darwin as it has its own alternatives */
+  .utimens = fusefm_utimens,
+  .chmod = fusefm_chmod,
+  .chown = fusefm_chown,
+  .truncate = fusefm_truncate,
+  .ftruncate = fusefm_ftruncate,
+  /* CJEC, 14-Oct-20: TODO: FreeBSD: What about chflags(2) ? */
 #endif	/* defined (__APPLE__) */
 
   // Extended Attributes
@@ -2455,7 +2684,7 @@ static struct fuse_operations fusefm_oper = {
   [center postNotificationName:kGMUserFileSystemMountFailed object:self
                       userInfo:userInfo];
 #if !defined (__APPLE__)
-  NSLog (@"ERROR: Mount FAILED. %@ %@ IN %@", error, userInfo, self);			/* Also log it, in case we're not using NSNotificationCenter (EG because we're not using NSApplication, which on GNUstep requires a GUI application) */
+  NSLog (@"Fuse: ERROR: Mount FAILED. %@ %@ IN %@", error, userInfo, self);			/* Also log it, in case we're not using NSNotificationCenter (EG because we're not using NSApplication, which on GNUstep requires a GUI application) */
 #endif	/* !defined (__APPLE__) */
 }
 
@@ -2520,7 +2749,7 @@ static struct fuse_operations fusefm_oper = {
                                              code:GMUserFileSystem_ERROR_UNMOUNT_DEADFS
                                          userInfo:userInfo];
         if (fNotMounted)
-          NSLog (@"WARNING: %@", description);
+          NSLog (@"Fuse: WARNING: %@", description);
         else
           {
           [self postMountError:error];

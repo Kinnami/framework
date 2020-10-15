@@ -825,6 +825,34 @@ extern NSString* const kGMUserFileSystemVolumeMaxFilenameLengthKey GM_AVAILABLE(
  */
 extern NSString* const kGMUserFileSystemVolumeFileSystemBlockSizeKey GM_AVAILABLE(3_0);
 
+/*! 
+ * @abstract Specifies the attribute indicating that the volume name may be set.
+ * @discussion If true, this file system support setting the volume name. Only available
+ * on OS X/Darwin. Functional in OSXFUSE 3.8.3, but not made available until afterwards.
+ */
+extern NSString* const kGMUserFileSystemVolumeSupportsSetVolumeNameKey GM_AVAILABLE(3_0);
+
+/*! 
+ * @abstract Specifies the file system's volume name
+ * @discussion The value should be an NSString that is the file system's volume name.
+ * If omitted, the default is constructed from the Fuse fsname= option. Only available
+ * on OS X/Darwin. Functional in OSXFUSE 3.8.3, but not made available until afterwards.
+ */
+extern NSString* const kGMUserFileSystemVolumeNameKey GM_AVAILABLE(3_0);
+/*! 
+ * @abstract Specifies the FIFO special file type. (Missing from NSFileManager's constants.)
+ * @discussion The FIFO special file type is equivalent to the S_IFIFO bit in 
+ * struct stat.mode. Added to OSXFUSE 3.8.3.
+ */
+extern NSString* const kGMUserFileSystemFileTypeFIFOSpecialKey GM_AVAILABLE(3_0);
+
+/*! 
+ * @abstract Specifies the Whiteout special file type. (Missing from NSFileManager's constants.)
+ * @discussion The whiteout special file type is equivalent to the S_IFWHT bit in
+ * struct stat.mode for OS X/Darwin and FreeBSD. Not available in Linux. Added to OSXFUSE 3.8.3.
+ */
+extern NSString* const kGMUserFileSystemFileTypeWhiteoutSpecialKey GM_AVAILABLE(3_0);
+
 #pragma mark Additional Finder and Resource Fork Keys
 
 /*! @group Additional Finder and Resource Fork Keys */
