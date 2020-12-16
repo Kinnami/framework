@@ -1631,7 +1631,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
 
 #pragma mark Extended Attributes
 
-/* Note: Linux listxattr(2) limits the size of the extended attribute name list to 64KB. https://man7.org/linux/man-pages/man7/xattr.7.html */
+/* Note: Linux listxattr(2) limits the size of the extended attribute name list to 64KB (XATTR_LIST_MAX). https://man7.org/linux/man-pages/man7/xattr.7.html */
 
 - (NSArray *)extendedAttributesOfItemAtPath:path error:(NSError **)error {
 #if defined (__APPLE__)
