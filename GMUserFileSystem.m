@@ -2669,6 +2669,12 @@ static struct fuse_operations fusefm_oper = {
   .getxattr = fusefm_getxattr,
   .setxattr = fusefm_setxattr,
   .removexattr = fusefm_removexattr,
+  
+  // Fuse operation flags. See declaration of struct fuse_operations in fuse.h
+  .flag_reserved = 0,
+  .flag_nullpath_ok = false,				/* CJEC, 16-Dec-20: TODO: Optimise by enabling this so the path doesn't need to be generated when the file has been deleted */
+  .flag_nopath = false,							/* CJEC, 16-Dec-20: TODO: Optimise by enabling this so the path doesn't need to be generated */
+  .flag_utime_omit_ok = false,			/* CJEC, 16-Dec-20: TODO: Support UTIME_NOW and UTIME_OMIT for utimesat(2) support on Linux, FreeBSD */
 };
 
 #pragma mark Internal Mount
