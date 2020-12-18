@@ -206,7 +206,7 @@ static int	Unmount (NSArray * a_poaoArgs)
       }
     default:
     	{
-      NSLog (@"Fuse: UNEXPECTED: '%@': exit code %i. Returning EPERM", poszUnmount, iExitCode);
+      NSLog (@"Fuse: FATAL ERROR: UNEXPECTED: '%@': exit code %i. Returning EPERM", poszUnmount, iExitCode);
       iErrno = EPERM;					/* Use an errno value that cann't be handled and generates an error */
       break;
       }
@@ -454,7 +454,9 @@ static int	Unmount (NSArray * a_poaoArgs)
         ret = 0;
       }
 #else
-#warning "ERROR: (Temporarily disabled #error) Needs implementation for fuse_invalidate_path()"
+			/* CJEC, 18-Dec-20: TODO: Implement -[GMUserFileSystem invalidateItemAtPath: error:] on non OS X/Darwin platforms
+      */
+      NSLog (@"Fuse: ERROR: UNIMPLEMENTED: fuse_invalidate_path(). Returning ENOTSUP IN %@", self);
 		  ret = -ENOTSUP;
 #endif	/* defined (__APPLE__) */
     }
@@ -2726,7 +2728,9 @@ static struct fuse_operations fusefm_oper = {
       fNotMounted = iErrno == 0;
 #else
 #if defined (__FREEBSD__)
-#warning "ERROR: (Temporarily disabled #error) Needs implementation on FreeBSD. Determine if there's a deadfs at the mountpoint */
+		/* CJEC, 18-Dec-20: TODO: Determine whether the mount point is a deadfs
+    */
+    NSLog (@"Fuse: WARNING: UNIMPLEMENTED: Determine deadfs at mountpoint. Attempting dismount anyway. Ignore possible subsequent error IN %@", self);
       {
 //    ret = unmount([[internal_ mountPath] UTF8String], 0);	/* https://www.man7.org/linux/man-pages/man2/umount.2.html */
 //    iErrno = ret < 0 ? errno : 0;
@@ -2735,7 +2739,9 @@ static struct fuse_operations fusefm_oper = {
       fNotMounted = (iErrno == 0) || (iErrno == EINVAL);	/* unmount(2) returns EINVAL if not in the mount table */
 #else
 #if defined (__linux__)
-#warning "ERROR: (Temporarily disabled #error) Needs implementation on Linux. Determine if there's a deadfs at the mountpoint */
+		/* CJEC, 18-Dec-20: TODO: Determine whether the mount point is a deadfs
+    */
+    NSLog (@"Fuse: WARNING: UNIMPLEMENTED: Determine deadfs at mountpoint. Attempting dismount anyway. Ignore possible subsequent error IN %@", self);
       {
 //    ret = umount2([[internal_ mountPath] UTF8String], 0);	/* https://www.man7.org/linux/man-pages/man2/umount.2.html */
 //    iErrno = ret < 0 ? errno : 0;
