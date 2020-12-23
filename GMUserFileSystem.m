@@ -848,6 +848,11 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   }
 
   // Inode
+  /* CJEC, 23-Dec-20: TODO: OSXFUSE 3.10.5 documents a problem with 64 bit INodeIDs losing the top 32 bits
+  														due to a kernel problem https://github.com/osxfuse/osxfuse/releases/tag/osxfuse-3.10.5 
+                              This fix needs to be applied to this code base, or use Benjamin Fleischer's modern
+                              macFUSE 4.x, which is not open source.
+  */
   NSNumber* inode = [attributes objectForKey:NSFileSystemFileNumber];
   if (inode) {
     stbuf->st_ino = [inode longLongValue];
@@ -1090,6 +1095,9 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
 
 #pragma mark Moving an Item
 
+/* Note: renameat2(2) support was added to Linux in the Fuse 3.0 API specification
+          and renamex_np(2) support was added to OS X/Darwin in macFUSE 4.0.0
+*/
 - (BOOL)moveItemAtPath:(NSString *)source 
                 toPath:(NSString *)destination
                  error:(NSError **)error {
@@ -1904,6 +1912,9 @@ static int fusefm_unlink(const char* path) {
   return ret;
 }
 
+/* Note: renameat2(2) support was added to Linux in the Fuse 3.0 API specification
+					and renamex_np(2) support was added to OS X/Darwin in macFUSE 4.0.0
+*/
 static int fusefm_rename(const char* path, const char* toPath) {
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
   int ret = -EACCES;
@@ -2620,6 +2631,9 @@ static struct fuse_operations fusefm_oper = {
   .unlink = fusefm_unlink,
   
   // Moving an Item
+  /* Note: renameat2(2) support was added to Linux in the Fuse 3.0 API specification,
+  					and renamex_np(2) support was added to OS X/Darwin in macFUSE 4.0.0
+  */
   .rename = fusefm_rename,
   
   // Linking an Item
