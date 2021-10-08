@@ -69,18 +69,18 @@
 #include <sys/sysctl.h>
 #include <sys/utsname.h>
 
-#if defined (__APPLE__) || defined (__FREEBSD__)
+#if defined (__APPLE__) || defined (__FreeBSD__)
 #include <sys/vnode.h>
-#endif	/* defined (__APPLE__) || defined (__FREEBSD__) */
+#endif	/* defined (__APPLE__) || defined (__FreeBSD__) */
 
 #import <Foundation/Foundation.h>
 #import "GMFinderInfo.h"
 #import "GMResourceFork.h"
 #import "GMDataBackedFileDelegate.h"
 
-#if defined (__APPLE__) || defined (__FREEBSD__)
+#if defined (__APPLE__)
 #import "GMDTrace.h"
-#endif	/* defined (__APPLE__) || defined (__FREEBSD__) */
+#endif	/* defined (__APPLE__) */
 
 #define GM_EXPORT __attribute__((visibility("default")))
 
@@ -876,10 +876,10 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
     stbuf->st_mode |= S_IFSOCK;
   } else if ([fileType isEqualToString:kGMUserFileSystemFileTypeFIFOSpecialKey]) {
     stbuf->st_mode |= S_IFIFO;
-#if defined (__APPLE__) || defined (__FREEBSD__)
+#if defined (__APPLE__) || defined (__FreeBSD__)
   } else if ([fileType isEqualToString:kGMUserFileSystemFileTypeWhiteoutSpecialKey]) {
     stbuf->st_mode |= S_IFWHT;
-#endif	/* defined (__APPLE__) || defined (__FREEBSD__) */
+#endif	/* defined (__APPLE__) || defined (__FreeBSD__) */
   } else {
 #if defined (__APPLE__)
     *error = [GMUserFileSystem errorWithCode:EFTYPE];
@@ -901,7 +901,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   NSNumber* nlink = [attributes objectForKey:NSFileReferenceCount];
   stbuf->st_nlink = [nlink longValue];
 
-#if defined (__APPLE__) || defined (__FREEBSD__)
+#if defined (__APPLE__) || defined (__FreeBSD__)
   // flags
   NSNumber* flags = [attributes objectForKey:kGMUserFileSystemFileFlagsKey];
   if (flags) {
@@ -917,7 +917,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
       stbuf->st_flags |= UF_APPEND;
     }
   }
-#endif	/* defined (__APPLE__) || defined (__FREEBSD__) */
+#endif	/* defined (__APPLE__) || defined (__FreeBSD__) */
 
   // Note: We default atime, ctime to mtime if it is provided.
   NSDate* mdate = [attributes objectForKey:NSFileModificationDate];
@@ -968,7 +968,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
 #endif	/* defined (__linux__) */
   }
 
-#if defined (_DARWIN_USE_64_BIT_INODE) || defined (__FREEBSD__)
+#if defined (_DARWIN_USE_64_BIT_INODE) || defined (__FreeBSD__)
   /* CJEC, 14-Oct-20: TODO: Linux has statx(2) which provides struct statx.stx_btime
                             but this is not supported by Fuse 2.6 API
   */
@@ -981,7 +981,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
     stbuf->st_birthtimespec.tv_sec = t_sec;
     stbuf->st_birthtimespec.tv_nsec = t_nsec;
   }
-#endif	/* defined (_DARWIN_USE_64_BIT_INODE) || defined (__FREEBSD__) */
+#endif	/* defined (_DARWIN_USE_64_BIT_INODE) || defined (__FreeBSD__) */
 
   // File size
   // Note that the actual file size of a directory depends on the internal 
@@ -2741,7 +2741,7 @@ static struct fuse_operations fusefm_oper = {
       iErrno = ret < 0 ? errno : 0;
       fNotMounted = iErrno == 0;
 #else
-#if defined (__FREEBSD__)
+#if defined (__FreeBSD__)
 		/* CJEC, 18-Dec-20: TODO: Determine whether the mount point is a deadfs
     */
     NSLog (@"Fuse: WARNING: UNIMPLEMENTED: Determine deadfs at mountpoint. Attempting dismount anyway. Ignore possible subsequent error IN %@", self);
@@ -2763,7 +2763,7 @@ static struct fuse_operations fusefm_oper = {
       iErrno = Unmount (args);	/* Can't use unmount(2) without root priviledge */
       fNotMounted = (iErrno == 0) || (iErrno == EINVAL);	/* unmount2(2) returns EINVAL if not a mount point (among other reasons) */
 #endif	/* defined (__linux__) */
-#endif	/* defined (__FREEBSD__) */
+#endif	/* defined (__FreeBSD__) */
 #endif	/* defined (__APPLE__) */
 
       if (iErrno != 0) {
