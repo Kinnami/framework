@@ -339,6 +339,7 @@ extern NSString* const kGMUserFileSystemDidUnmount GM_AVAILABLE(2_0);
  *   <li>kGMUserFileSystemVolumeSupportsExtendedDatesKey
  *   <li>kGMUserFileSystemVolumeMaxFilenameLengthKey
  *   <li>kGMUserFileSystemVolumeFileSystemBlockSizeKey</ul>
+ *   <li>kGMUserFileSystemVolumeFileSystemOptimalIOSizeKey</ul>
  *   <li>kGMUserFileSystemVolumeSupportsCaseSensitiveNamesKey</ul>
  *
  * @seealso man statvfs(3)
@@ -821,11 +822,18 @@ extern NSString* const kGMUserFileSystemVolumeMaxFilenameLengthKey GM_AVAILABLE(
 /*! 
  * @abstract Specifies the file system block size in bytes.
  * @discussion The value should be an NSNumber that is the file system block size
+ * in bytes. If omitted 512 bytes is assumed.
+ */
+extern NSString* const kGMUserFileSystemVolumeFileSystemOptimalIOSizeKey GM_AVAILABLE(3_0);
+
+/*! 
+ * @abstract Specifies the file system optimal IO size in bytes.
+ * @discussion The value should be an NSNumber that is the file system block size
  * in bytes. If omitted 4096 bytes is assumed.
  */
 extern NSString* const kGMUserFileSystemVolumeFileSystemBlockSizeKey GM_AVAILABLE(3_0);
 
-/*! 
+/*!
  * @abstract Specifies the attribute indicating that the volume name may be set.
  * @discussion If true, this file system support setting the volume name. Only available
  * on OS X/Darwin. Functional in OSXFUSE 3.8.3, but not made available until afterwards.

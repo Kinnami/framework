@@ -114,6 +114,8 @@ GM_EXPORT NSString* const kGMUserFileSystemVolumeSupportsExchangeDataKey = @"kGM
 GM_EXPORT NSString* const kGMUserFileSystemVolumeSupportsExtendedDatesKey = @"kGMUserFileSystemVolumeSupportsExtendedDatesKey";
 GM_EXPORT NSString* const kGMUserFileSystemVolumeMaxFilenameLengthKey = @"kGMUserFileSystemVolumeMaxFilenameLengthKey";
 GM_EXPORT NSString* const kGMUserFileSystemVolumeFileSystemBlockSizeKey = @"kGMUserFileSystemVolumeFileSystemBlockSizeKey";
+GM_EXPORT NSString* const kGMUserFileSystemVolumeFileSystemOptimalIOSizeKey = @"kGMUserFileSystemVolumeFileSystemOptimalIOSizeKey";
+
 
 GM_EXPORT NSString* const kGMUserFileSystemVolumeSupportsSetVolumeNameKey = @"kGMUserFileSystemVolumeSupportsSetVolumeNameKey";
 GM_EXPORT NSString* const kGMUserFileSystemVolumeNameKey = @"kGMUserFileSystemVolumeNameKey";
@@ -329,6 +331,9 @@ static int	Unmount (NSArray * a_poaoArgs)
                  forPath:(NSString *)path
                    error:(NSError **)error;
 
+- (BOOL)fillStatvfsBuffer:(struct statvfs *)stbuf
+                 forPath:(NSString *)path
+                   error:(NSError **)error;
 - (void)fuseInit;
 - (void)fuseDestroy;
 
@@ -767,14 +772,28 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
     return NO;
   }
   
+  // CJEC, 13-Oct-21: This "block size" is actually the optimal IO size, not the file sytem's
+  //									block size. See statfs(2) and statvfs(2).
+  //									Patched this code to use the correct key from the orginal OSXFUSE 3.8.3
+  //									source
+  // Optimal IO size
+  NSNumber* iosize = [attributes objectForKey:kGMUserFileSystemVolumeFileSystemOptimalIOSizeKey];
+  assert(iosize);
+#if defined (__linux__)
+  stbuf->f_bsize = (int32_t)[iosize intValue];
+#else
+  stbuf->f_iosize = (int32_t)[iosize intValue];
+#endif	/* defined (__linux__) */
+  
   // Block size
   NSNumber* blocksize = [attributes objectForKey:kGMUserFileSystemVolumeFileSystemBlockSizeKey];
   assert(blocksize);
+#if defined (__linux__)
+  stbuf->f_frsize = (uint32_t)[blocksize unsignedIntValue];
+#else
   stbuf->f_bsize = (uint32_t)[blocksize unsignedIntValue];
-  #if !defined (__linux__)
-  stbuf->f_iosize = (int32_t)[blocksize intValue];
-  #endif	/* !defined (_lLinux__) */
-  
+#endif	/* defined (__linux__) */
+
   // Size in blocks
   NSNumber* size = [attributes objectForKey:NSFileSystemSize];
   assert(size);
@@ -808,10 +827,27 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   }
   
   // Block size
+  #if 0
   NSNumber* blocksize = [attributes objectForKey:kGMUserFileSystemVolumeFileSystemBlockSizeKey];
   assert(blocksize);
   stbuf->f_bsize = (uint32_t)[blocksize unsignedIntValue];
-  
+
+  #else
+  // CJEC, 13-Oct-21: This "block size" is actually the optimal IO size, not the file sytem's
+  //									block size. See statfs(2) and statvfs(2).
+  //									Patched this code to use the correct key from the orginal OSXFUSE 3.8.3
+  //									source
+  NSNumber* iosize = [attributes objectForKey:kGMUserFileSystemVolumeFileSystemOptimalIOSizeKey];
+  assert(iosize);
+  stbuf->f_bsize = (uint32_t)[iosize unsignedIntValue];
+
+	// The file system block size
+  NSNumber* blocksize = [attributes objectForKey:kGMUserFileSystemVolumeFileSystemBlockSizeKey];
+  assert(blocksize);
+  stbuf->f_frsize = (uint32_t)[blocksize unsignedIntValue];
+
+#endif
+
   // Size in blocks
   NSNumber* size = [attributes objectForKey:NSFileSystemSize];
   assert(size);
@@ -832,6 +868,15 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   NSNumber* freeNodes = [attributes objectForKey:NSFileSystemFreeNodes];
   assert(freeNodes);
   stbuf->f_ffree = (uint64_t)[freeNodes unsignedLongLongValue];
+  
+  // CJEC, 13-Oct-21: Add support for the maximum filename length
+  // Maximum lengh of a filename
+  //
+  // Note: OS X/Darwin and FreeBSD statvfs(3) man pages both state that
+  //				pathconf(2) should be used instead
+  NSNumber* namemax = [attributes objectForKey:kGMUserFileSystemVolumeMaxFilenameLengthKey];
+  assert(namemax);
+  stbuf->f_namemax = [namemax unsignedLongValue];
   
   return YES;
 }
@@ -1010,6 +1055,13 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
     stbuf->st_blksize = [ioSize intValue];
   }
 
+	// CJEC, 13-Oct-21: Add support for the device file's INodeID
+ 	// Device file number
+  NSNumber *device = [attributes objectForKey: NSFileSystemFileNumber];
+  if (device) {
+    stbuf->st_dev = (dev_t) [device intValue];
+  }
+  
   return YES;  
 }
 
@@ -1437,7 +1489,8 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   [attributes setObject:defaultSize forKey:NSFileSystemNodes];
   [attributes setObject:defaultSize forKey:NSFileSystemFreeNodes];
   [attributes setObject:[NSNumber numberWithInt:255] forKey:kGMUserFileSystemVolumeMaxFilenameLengthKey];
-  [attributes setObject:[NSNumber numberWithInt:4096] forKey:kGMUserFileSystemVolumeFileSystemBlockSizeKey];
+  [attributes setObject:[NSNumber numberWithInt:4096] forKey:kGMUserFileSystemVolumeFileSystemOptimalIOSizeKey];	/* CJEC, 13-Oct-21: This "block size" is actually the optimal IO size, not the file sytem's block size. See statfs(2) and statvfs(2) */
+  [attributes setObject:[NSNumber numberWithInt:512] forKey:kGMUserFileSystemVolumeFileSystemBlockSizeKey];
 
   NSNumber* supports = nil;
 
@@ -2389,7 +2442,7 @@ static int fusefm_setattr_x(const char* path, struct setattr_x* attrs) {
     
     Note: It appears that btime and ctime cannot be set on Linux or FreeBSD.
 
-    CJEC, 14-Oct-20: TODO: FreeBSD: What about chflags(2)
+    CJEC, 14-Oct-20: TODO: FreeBSD: What about chflags(2)? See https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=238197
 */
 static int	fusefm_utimens (const char * a_pszPath, const struct timespec a_TimeSpecs [2])
 	{
@@ -2677,7 +2730,7 @@ static struct fuse_operations fusefm_oper = {
   .chown = fusefm_chown,
   .truncate = fusefm_truncate,
   .ftruncate = fusefm_ftruncate,
-  /* CJEC, 14-Oct-20: TODO: FreeBSD: What about chflags(2) ? */
+  /* CJEC, 14-Oct-20: TODO: FreeBSD: What about chflags(2) ? See https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=238197 */
 #endif	/* defined (__APPLE__) */
 
   // Extended Attributes
