@@ -33,7 +33,45 @@
 //  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED  OF  THE
 //  POSSIBILITY OF SUCH DAMAGE.
 
-#import <Foundation/Foundation.h>
+/* Before including anything, set essential platform option compiler switches */
+#if defined (_WIN32)
+#if defined (__MINGW32__)						/* When using MinGW32 or MinGW-w64 */
+#include <_mingw.h>
+#if defined (__MINGW64_VERSION_MAJOR)
+#define __USE_MINGW_ANSI_STDIO		1			/* Use MinGW-w64 stdio for proper C99 support, such as %llu, _vswprintf(). See https://sourceforge.net/p/mingw-w64/wiki2/printf%20and%20scanf%20family/ */
+#include <sdkddkver.h>							/* Use MSys2/MinGW-w64 standard version header for 64-bit and 32-bit Windows */
+#include <w32api.h>								/* Use the system header provided with Msys2/MinGW-w64 */
+#define Windows2008					0x0600		/* Missing from w32api.h. Values identified in /mingw64/x86_64-w64-mingw32/include/sdkkddkver.h so these can also be used to define _WIN32_WINNT */
+#define Windows7					0x0601
+#define Windows8					0x0602
+#define WindowsBlue					0x0603
+#define Windows10					0x0A00
+#else											/* Otherwise buiding with MinGW32 for 32-bit Windows */
+#include <w32api.h>								/* Use the system header provided with Msys/MinGW32 */
+#endif	/* defined (__MINGW64_VERSION_MAJOR) */
+#else											/* Otherwise building with Microsoft Visual C/C++ */
+#error "Windows: Not building with MinGW32 nor MinGW-w64? Needs porting"
+#endif	/* defined (__MINGW32__) */
+#if !defined (_WIN32_WINNT)
+#warning "Windows: _WIN32_WINNT is not defined. Normally defined in GNUMakefile or make command line. EG make CPPFLAGS='-D_WIN32_WINNT=WindowsXP'"
+#else
+#if _WIN32_WINNT >= WindowsVista
+#define __MSVCRT_VERSION__ 			0x0700		/* Note: Allow use of later MSVCRT functions. Windows Vista seems to have v7.0 of MSVCRT.DLL. WindowsXP doesn't always have it. Baseline installation has only v4.0 */
+#endif	/* _WIN32_WINNT >= WindowsVista */
+#endif	/* !defined (_WIN32_WINNT) */
+#include <windows.h>							/* Need to includes w32api.h and windows.h before Foundation.h to use WSAEVENT */
+#endif	/* defined (_WIN32) */
+
+#if defined (__APPLE__)
+#define _DARWIN_USE_64_BIT_INODE	1			/* Always use 64 bit inode definitions for things like struct stat */
+#endif	/* defined (__APPLE__) */
+
+#if defined (__linux__)
+#define _GNU_SOURCE					1			/* Required for dladdr() and struct Dl_info on Linux */
+#endif	/* defined (__linux__) */
+
+/* Include the essential Objective C environment umbrella header file(s) */
+#import <Foundation/Foundation.h>				/* See "Foundation Framework Reference" and "Foundation Reference Update" */
 
 #define GM_EXPORT __attribute__((visibility("default")))
 
