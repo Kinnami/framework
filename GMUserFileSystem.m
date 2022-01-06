@@ -38,6 +38,7 @@
 
 //  Based on FUSEFileSystem originally by alcor.
 
+#import "GMAvailability.h"						/* Always include this first */
 #import "GMUserFileSystem.h"
 
 /* FUSE_USE_VERSION: Which version of the libFuse API for which platform?
@@ -73,7 +74,6 @@
 #include <sys/vnode.h>
 #endif	/* defined (__APPLE__) || defined (__FreeBSD__) */
 
-#import <Foundation/Foundation.h>
 #import "GMFinderInfo.h"
 #import "GMResourceFork.h"
 #import "GMDataBackedFileDelegate.h"
@@ -82,11 +82,17 @@
 #import "GMDTrace.h"
 #endif	/* defined (__APPLE__) */
 
-#define GM_EXPORT __attribute__((visibility("default")))
-
 // Creates a dtrace-ready string with any newlines removed.
 #define DTRACE_STRING(s)  \
 ((char *)[[s stringByReplacingOccurrencesOfString:@"\n" withString:@" "] UTF8String])
+
+// See "64-bit Class and Instance Variable Access Control"
+// Note: For reasons I don't understand, this definition cannot be placed in
+//			GMAvailability.h.
+//			If it is, the preprocessor on macOS thinks that while GM_EXPORT is
+//			defined in GMAvailability.h, it is not defined in this file, despite
+//			the #import.
+#define GM_EXPORT					__attribute__((visibility("default")))
 
 // Operation Context
 GM_EXPORT NSString* const kGMUserFileSystemContextUserIDKey = @"kGMUserFileSystemContextUserIDKey";
@@ -323,7 +329,7 @@ static int	Unmount (NSArray * a_poaoArgs)
 - (NSDictionary *)defaultAttributesOfItemAtPath:(NSString *)path 
                                        userData:userData
                                           error:(NSError **)error;  
-- (BOOL)fillStatBuffer:(struct stat *)stbuf 
+- (BOOL)fillStatBuffer:(struct fuse_stat *)stbuf 
                forPath:(NSString *)path
               userData:(id)userData
                  error:(NSError **)error;
@@ -881,7 +887,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   return YES;
 }
 
-- (BOOL)fillStatBuffer:(struct stat *)stbuf 
+- (BOOL)fillStatBuffer:(struct fuse_stat *)stbuf 
                forPath:(NSString *)path 
               userData:(id)userData
                  error:(NSError **)error {
@@ -897,10 +903,13 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   														due to a kernel problem https://github.com/osxfuse/osxfuse/releases/tag/osxfuse-3.10.5 
                               This fix needs to be applied to this code base, or use Benjamin Fleischer's modern
                               macFUSE 4.x, which is not open source.
+  	  
+    Note: For non-UNIX file system, the INodeID is meaningless.
+          See https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/stat-functions?view=msvc-170
   */
   NSNumber* inode = [attributes objectForKey:NSFileSystemFileNumber];
   if (inode) {
-    stbuf->st_ino = [inode longLongValue];
+    stbuf->st_ino = [inode longLongValue];	/* Note: FUSE assumes ino_t is 64 bits wide in its fuse_ino_t type */
   }
   
   // Permissions (mode)
@@ -997,7 +1006,11 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
     stbuf->st_atimespec.tv_sec = t_sec;
     stbuf->st_atimespec.tv_nsec = t_nsec;
 #endif	/* defined (__linux__) */
-  }    
+  }
+  // Note: For non-UNIX file system, the INodeID is meaningless.
+  //				See https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/stat-functions?view=msvc-170
+  // Note: On Windows, the C Runtime's stat(3) function uses st_ctime for the creation time,
+  //				rather than the inode change time
   NSDate* cdate = [attributes objectForKey:kGMUserFileSystemFileChangeDateKey];
   if (cdate) {
     const double seconds_dp = [cdate timeIntervalSince1970];
@@ -1013,7 +1026,8 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
 #endif	/* defined (__linux__) */
   }
 
-#if defined (_DARWIN_USE_64_BIT_INODE) || defined (__FreeBSD__)
+  // Note: For compatibility with UNIX, use st_birthtime for the Windows create time instead of st_ctime
+#if defined (_DARWIN_USE_64_BIT_INODE) || defined (__FreeBSD__) || defined (_WIN32)
   /* CJEC, 14-Oct-20: TODO: Linux has statx(2) which provides struct statx.stx_btime
                             but this is not supported by Fuse 2.6 API
   */
@@ -1335,7 +1349,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
              userData:(id)userData
                buffer:(char *)buffer 
                  size:(size_t)size 
-               offset:(off_t)offset
+               offset:(fuse_off_t)offset
                 error:(NSError **)error {
 #if defined (__APPLE__)
   if (OSXFUSE_OBJC_DELEGATE_ENTRY_ENABLED()) {
@@ -1365,7 +1379,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
               userData:(id)userData
                 buffer:(const char *)buffer
                   size:(size_t)size 
-                offset:(off_t)offset
+                offset:(fuse_off_t)offset
                  error:(NSError **)error {
 #if defined (__APPLE__)
   if (OSXFUSE_OBJC_DELEGATE_ENTRY_ENABLED()) {
@@ -1393,7 +1407,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
 
 - (BOOL)truncateFileAtPath:(NSString *)path
                   userData:(id)userData
-                    offset:(off_t)offset 
+                    offset:(fuse_off_t)offset 
                      error:(NSError **)error
                    handled:(BOOL*)handled {
   if (userData != nil &&
@@ -1413,8 +1427,8 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
 - (BOOL)allocateFileAtPath:(NSString *)path
                   userData:(id)userData
                    options:(int)options
-                    offset:(off_t)offset
-                    length:(off_t)length
+                    offset:(fuse_off_t)offset
+                    length:(fuse_off_t)length
                      error:(NSError **)error {
 #if defined (__APPLE__)
   if (OSXFUSE_OBJC_DELEGATE_ENTRY_ENABLED()) {
@@ -1673,7 +1687,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   if ([attributes objectForKey:NSFileSize] != nil) {
     BOOL handled = NO;  // Did they have a delegate method that handles truncation?    
     NSNumber* offsetNumber = [attributes objectForKey:NSFileSize];
-    off_t offset = [offsetNumber longLongValue];
+    fuse_off_t offset = [offsetNumber longLongValue];
     BOOL ret = [self truncateFileAtPath:path 
                                userData:userData
                                  offset:offset 
@@ -1712,7 +1726,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
 
 - (NSData *)valueOfExtendedAttribute:(NSString *)name 
                         ofItemAtPath:(NSString *)path
-                            position:(off_t)position
+                            position:(fuse_off_t)position
                                error:(NSError **)error {
 #if defined (__APPLE__)
   if (OSXFUSE_OBJC_DELEGATE_ENTRY_ENABLED()) {
@@ -1761,7 +1775,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
 - (BOOL)setExtendedAttribute:(NSString *)name 
                 ofItemAtPath:(NSString *)path 
                        value:(NSData *)value
-                    position:(off_t)position
+                    position:(fuse_off_t)position
                      options:(int)options
                        error:(NSError **)error {
 #if defined (__APPLE__)
@@ -2052,7 +2066,7 @@ static int fusefm_readlink(const char *path, char *buf, size_t size)
 }
 
 static int fusefm_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
-                          off_t offset, struct fuse_file_info* fi) {
+                          fuse_off_t offset, struct fuse_file_info* fi) {
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
   int ret = -ENOENT;
 
@@ -2120,7 +2134,7 @@ static int fusefm_release(const char *path, struct fuse_file_info* fi) {
   return 0;
 }
 
-static int fusefm_read(const char *path, char *buf, size_t size, off_t offset,
+static int fusefm_read(const char *path, char *buf, size_t size, fuse_off_t offset,
                        struct fuse_file_info* fi) {
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
   int ret = -EIO;
@@ -2142,7 +2156,7 @@ static int fusefm_read(const char *path, char *buf, size_t size, off_t offset,
 }
 
 static int fusefm_write(const char* path, const char* buf, size_t size, 
-                        off_t offset, struct fuse_file_info* fi) {
+                        fuse_off_t offset, struct fuse_file_info* fi) {
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
   int ret = -EIO;
   
@@ -2168,7 +2182,7 @@ static int fusefm_fsync(const char* path, int isdatasync,
   return 0;
 }
 
-static int fusefm_fallocate(const char* path, int mode, off_t offset, off_t length,
+static int fusefm_fallocate(const char* path, int mode, fuse_off_t offset, fuse_off_t length,
                             struct fuse_file_info* fi) {
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
   int ret = -ENOSYS;
@@ -2521,12 +2535,12 @@ static int	fusefm_chown (const char * a_pszPath, uid_t a_UID, gid_t a_GID)
   return ret;
   }
 
-static int	fusefm_truncate (const char * a_pszPath, off_t a_cbSize)
+static int	fusefm_truncate (const char * a_pszPath, fuse_off_t a_cbSize)
 	{
   return fusefm_ftruncate (a_pszPath, a_cbSize, NULL);
   }
 
-static int	fusefm_ftruncate (const char * a_pszPath, off_t a_cbSize, struct fuse_file_info * a_pFuseFileInfo)
+static int	fusefm_ftruncate (const char * a_pszPath, fuse_off_t a_cbSize, struct fuse_file_info * a_pFuseFileInfo)
 	{
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
   int ret = 0;  // Note: Return success by default.

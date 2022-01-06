@@ -36,6 +36,7 @@
 // See the following URL for documentation on resource fork format:
 // http://developer.apple.com/documentation/mac/MoreToolbox/MoreToolbox-99.html
 
+#import "GMAvailability.h"						/* Always include this first */
 #import "GMResourceFork.h"
 
 #if !defined (__APPLE__)
