@@ -39,9 +39,9 @@
 #import "GMAvailability.h"						/* Always include this first */
 #import "GMResourceFork.h"
 
-#if !defined (__APPLE__)
+#if !defined (__APPLE__) && !defined (_WIN32)
 #include <arpa/inet.h>								/* For htonl() */
-#endif	/* !defined (__APPLE__) */
+#endif	/* !defined (__APPLE__) && !defined (_WIN32) */
 
 // The format for a resource fork is as follows ('+' means one-or-more):
 //

@@ -12,7 +12,7 @@
 #define __USE_MINGW_ANSI_STDIO		1			/* Use MinGW-w64 stdio for proper C99 support, such as %llu, _vswprintf(). See https://sourceforge.net/p/mingw-w64/wiki2/printf%20and%20scanf%20family/ */
 #include <_mingw.h>
 #if defined (__MINGW64__)
-#include <sdkddkver.h>							/* Use MSys2/MinGW-w64 standard version header for 64-bit and 32-bit Windows */
+#include <sdkddkver.h>							/* Use MSYS2/MinGW-w64 standard version header for 64-bit and 32-bit Windows */
 #include <w32api.h>								/* Use the system header provided with Msys2/MinGW-w64 */
 #define Windows2008					0x0600		/* Missing from w32api.h. Values identified in /mingw64/x86_64-w64-mingw32/include/sdkkddkver.h so these can also be used to define _WIN32_WINNT */
 #define Windows7					0x0601
@@ -52,7 +52,9 @@
 
 #if defined (_WIN32)
 
-#if defined (__MINGW64__))
+/* Note: fuse.h defined fuse_ino_t, so don't define it here */
+
+#if defined (__MINGW64__)
 typedef off64_t						fuse_off_t;	/* off_t is 32 bits wide on Windows (32 and 64 bit). Always define fuse_off_t to be a 64 bit integer. MINGW64: off64_t is defined in _mingw_off_t.h */
 #else
 #error "Windows: Not MINGW64. Need to define fuse_off_t"
@@ -135,12 +137,24 @@ typedef off_t						fuse_off_t;	/* off_t should always be defined to be 64 bits w
 /*****************************************************************************/
 /*	PORTABILITY MODIFICATIONS FOR NON-APPLE PLATFORMS:
 */
+#if defined (__MINGW64__)
+typedef uint32_t		UInt32;
+typedef int32_t			SInt32;
+typedef uint16_t		UInt16;
+typedef int16_t			SInt16;
+typedef uint8_t			UInt8;
+typedef int8_t			SInt8;
+#endif	/* defined (__MINGW64__) */
+
 typedef UInt32			FourCharCode;
 typedef FourCharCode	ResType;
 typedef SInt16			ResID;
 
+/* Linux getxattr(2) etc returns ENODATA. ENOATTR has been removed, although it used to be defined like this https://linux.die.net/man/2/lgetxattr
+	Windows C Runtme does not define ENOATTR, but does define ENODATA, so use the same definition as Linux
+*/
 #if !defined (ENOATTR)
-#define ENOATTR			ENODATA					/* Linux getxattr(2) etc returns ENODATA. ENOATTR has been removed, although it used to be defined like this https://linux.die.net/man/2/lgetxattr */
+#define ENOATTR			ENODATA
 #endif	/* !defined (ENOATTR) */
 
 /*****************************************************************************/

@@ -29,12 +29,30 @@ $(FRAMEWORK_NAME)_NEEDS_GUI	= no
 # Framework preprocessor, compiler and linker flags and include directories
 $(FRAMEWORK_NAME)_INCLUDE_DIRS	=
 $(FRAMEWORK_NAME)_CPPFLAGS 		= -D_FILE_OFFSET_BITS=64
-$(FRAMEWORK_NAME)_CFLAGS 		=
-$(FRAMEWORK_NAME)_OBJCFLAGS 	=
+$(FRAMEWORK_NAME)_CFLAGS 		= -std=gnu11
+$(FRAMEWORK_NAME)_OBJCFLAGS 	= -std=gnu11
+$(FRAMEWORK_NAME)_LDFLAGS 		=
 
+# Libaries. Must be specified for Windows when linking a DLL. https://www.msys2.org/wiki/Porting/
+ifeq ($(AMISHARE_TARGET), Windows)
+	ifeq ($(AMISHARE_TARGET_VERSION), WindowsVista)
+# CJEC, 25-Nov-09: See src/libVistaGetOutputFormat about this
+		$(FRAMEWORK_NAME)_VISTAGETOUTPUTFORMATLIB = $(AMISHARE_BASE)/src/libVistaGetOutputFormat/getoutputformat.o
+	endif
+	ifeq ($(AMISHARE_TARGET_VERSION), Windows7)
+# CJEC, 27-Oct-21: __USE_MINGW_ANSI_STDIO: Use MinGW-w64 stdio for proper C99 support, such as %llu, _vswprintf(). See https://sourceforge.net/p/mingw-w64/wiki2/printf%20and%20scanf%20family/
+		$(FRAMEWORK_NAME)_VISTAGETOUTPUTFORMATLIB =
+	endif
+	ifeq ($(AMISHARE_TARGET_VERSION), Windows10)
+# CJEC, 27-Oct-21: __USE_MINGW_ANSI_STDIO: Use MinGW-w64 stdio for proper C99 support, such as %llu, _vswprintf(). See https://sourceforge.net/p/mingw-w64/wiki2/printf%20and%20scanf%20family/
+		$(FRAMEWORK_NAME)_VISTAGETOUTPUTFORMATLIB =
+	endif
+	ADDITIONAL_LIB_DIRS = -L$(AMISHARE_BASE)/src/libTracelog/src/$(AMISHARE_TARGET)/obj -lTracelog $($(FRAMEWORK_NAME)_VISTAGETOUTPUTFORMATLIB) -lcrypto -lz
+else
 # Linux requires libfuse
-ifeq ($(GNUSTEP_HOST_OS), linux-gnu)
-$(FRAMEWORK_NAME)_LDFLAGS		= -lfuse
+	ifeq ($(GNUSTEP_HOST_OS), linux-gnu)
+	ADDITIONAL_LIB_DIRS			= -lfuse
+	endif
 endif
 
 # Framework principal class

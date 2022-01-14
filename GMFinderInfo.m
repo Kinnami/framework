@@ -39,9 +39,9 @@
 #import "GMAvailability.h"						/* Always include this first */
 #import "GMFinderInfo.h"
 
-#if !defined (__APPLE__)
+#if !defined (__APPLE__) && !defined (_WIN32)
 #include <arpa/inet.h>								/* For htonl() */
-#endif	/* !defined (__APPLE__) */
+#endif	/* !defined (__APPLE__) && !defined (_WIN32) */
 
 // All fields should be in network order. See CoreServices/CarbonCore/Finder.h
 // for details on what flags and extendedFlags can be.
