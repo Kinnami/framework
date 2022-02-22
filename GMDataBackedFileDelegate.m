@@ -64,7 +64,7 @@
              offset:(fuse_off_t)offset 
               error:(NSError **)error {
   size_t len = [data_ length];
-  if (offset > len) {
+  if (offset > (fuse_off_t) len) {
     return 0;  // No data to read.
   }
   if (offset + size > len) {

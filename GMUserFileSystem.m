@@ -282,7 +282,7 @@ static int	Unmount (NSArray * a_poaoArgs)
   SEL deprecatedMethods[] = {
     @selector(createFileAtPath:attributes:userData:error:)
   };
-  for (int i = 0; i < sizeof(deprecatedMethods) / sizeof(SEL); ++i) {
+  for (unsigned int i = 0; i < sizeof(deprecatedMethods) / sizeof(SEL); ++i) {
     SEL sel = deprecatedMethods[i];
     if ([delegate_ respondsToSelector:sel]) {
       NSLog(@"Fuse: WARNING: GMUserFileSystem delegate implements deprecated "
@@ -418,7 +418,7 @@ static int	Unmount (NSArray * a_poaoArgs)
     detachNewThread:(BOOL)detachNewThread {
   [internal_ setMountPath:mountPath];
   NSMutableArray* optionsCopy = [NSMutableArray array];
-  for (int i = 0; i < [options count]; ++i) {
+  for (NSUInteger i = 0; i < [options count]; ++i) {
     NSString* option = [options objectAtIndex:i];
     NSString* optionLowercase = [option lowercaseString];
     if ([optionLowercase compare:@"rdonly"] == NSOrderedSame ||
@@ -1759,7 +1759,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
     if (data != nil && position > 0) {
       // We have all the data, but they are only requesting a subrange.
       size_t length = [data length];
-      if (position > length) {
+      if (position > (fuse_off_t) length) {
         *error = [GMUserFileSystem errorWithCode:ERANGE];
         return nil;
       }
@@ -1857,7 +1857,8 @@ static void* fusefm_init(struct fuse_conn_info* conn) {
   SET_CAPABILITY(conn, FUSE_CAP_VOL_RENAME, [fs enableSetVolumeName]);
   SET_CAPABILITY(conn, FUSE_CAP_CASE_INSENSITIVE, ![fs enableCaseSensitiveNames]);
   SET_CAPABILITY(conn, FUSE_CAP_EXCHANGE_DATA, [fs enableExchangeData]);
-
+#else
+   (void) conn;										/* Avoid unused argument compiler warning */
 #endif	/* defined (__APPLE__) */
 
 	/* CJEC, 9-Jul-19: Enable atomic O_TRUNC support in open().
@@ -2070,6 +2071,9 @@ static int fusefm_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
   int ret = -ENOENT;
 
+  (void) offset;									/* Avoid unused argument compiler warning */
+  (void) fi;											/* Avoid unused argument compiler warning */
+  
   @try {
     NSError* error = nil;
     GMUserFileSystem* fs = [GMUserFileSystem currentFS];
@@ -2179,6 +2183,11 @@ static int fusefm_write(const char* path, const char* buf, size_t size,
 static int fusefm_fsync(const char* path, int isdatasync,
                         struct fuse_file_info* fi) {
   // TODO: Support fsync?
+  
+  (void) path;													/* Avoid unused argument compiler warning */
+  (void) isdatasync;										/* Avoid unused argument compiler warning */
+  (void) fi;														/* Avoid unused argument compiler warning */
+  
   return 0;
 }
 
@@ -2920,7 +2929,7 @@ static struct fuse_operations fusefm_oper = {
   if (shouldForeground) {
     [arguments addObject:@"-f"];  // Forground rather than daemonize.
   }
-  for (int i = 0; i < [options count]; ++i) {
+  for (NSUInteger i = 0; i < [options count]; ++i) {
     NSString* option = [options objectAtIndex:i];
     if ([option length] > 0) {
       [arguments addObject:[NSString stringWithFormat:@"-o%@",option]];

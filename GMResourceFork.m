@@ -209,11 +209,11 @@ typedef struct {
   NSMutableData* nameListData = [NSMutableData data];
 
   NSArray* keys = [resourcesByType_ allKeys];
-  int refListStartOffset = sizeof(ResourceTypeListHeader) + 
+  int refListStartOffset = sizeof(ResourceTypeListHeader) +
     ([keys count] * sizeof(ResourceTypeListItem));
 
   // For each resource type.
-  for ( int i = 0; i < [keys count]; ++i ) {
+  for ( NSUInteger i = 0; i < [keys count]; ++i ) {
     NSArray* resources = [resourcesByType_ objectForKey:[keys objectAtIndex:i]];
 
     // -- Append the ResourceTypeListItem to typeListData --
@@ -227,7 +227,7 @@ typedef struct {
     [typeListData appendBytes:&typeItem length:sizeof(typeItem)];
     
     // For each resource of that type.
-    for ( int j = 0; j < [resources count]; ++j ) {
+    for ( NSUInteger j = 0; j < [resources count]; ++j ) {
       GMResource* resource = [resources objectAtIndex:j];
       NSString* name = [resource name];
       
