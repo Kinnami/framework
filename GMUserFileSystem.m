@@ -2843,7 +2843,7 @@ static struct fuse_operations fusefm_oper = {
 #endif	/* defined (__APPLE__) */
 
       if (iErrno != 0) {
-        NSString* description = [NSString stringWithFormat: @"Unable to dismount an existing 'dead?' filesystem at '%@'. errno %i, %s", [internal_ mountPath], iErrno, strerror (iErrno)];
+        NSString* description = [NSString stringWithFormat: @"Unable to dismount an existing 'dead?' file system at '%@'. errno %i, %s", [internal_ mountPath], iErrno, strerror (iErrno)];
         NSDictionary* userInfo =
           [NSDictionary dictionaryWithObjectsAndKeys:
            description, NSLocalizedDescriptionKey,
