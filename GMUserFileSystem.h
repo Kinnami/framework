@@ -84,6 +84,15 @@
  * file systems that use OSXFUSE.framework. See the example file systems found
  * <a href="https://github.com/osxfuse/filesystems/">here</a>.
  */
+
+/*	CJEC, 23-May-22: TODO: Optimise. OSXFUSE uses the "high level Fuse API" which is synchronous
+                and so essentially single threaded. (Notifications are asynchronous,
+                but the fuse_invalidate_*() functions serialise their operation with
+                a mutex.
+                On the other hand, the "low level Fuse API" is asynchronous, allowing
+                parallel I/O operations. Rewriting the OSXFUSE framework to use it
+                would speed things up.
+*/
 GM_EXPORT @interface GMUserFileSystem : NSObject {
  @private
   GMUserFileSystemInternal* internal_;

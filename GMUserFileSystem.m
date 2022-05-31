@@ -38,6 +38,14 @@
 
 //  Based on FUSEFileSystem originally by alcor.
 
+/*	CJEC, 23-May-22: TODO: Optimise. OSXFUSE uses the "high level Fuse API" which is synchronous
+                and so essentially single threaded. (Notifications are asynchronous,
+                but the fuse_invalidate_*() functions serialise their operation with
+                a mutex.
+                On the other hand, the "low level Fuse API" is asynchronous, allowing
+                parallel I/O operations. Rewriting the OSXFUSE framework to use it
+                would speed things up.
+*/
 #import "GMAvailability.h"						/* Always include this first */
 #import "GMUserFileSystem.h"
 
@@ -986,11 +994,13 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
     stbuf->st_mtim.tv_nsec = t_nsec;
     stbuf->st_atim = stbuf->st_mtim;  // Default to mtime
     stbuf->st_ctim = stbuf->st_mtim;  // Default to mtime
+//    NSLog (@"Fuse: DEBUG: %s, %s{%u}: NSModificationDate %@, timespec %lu,%lu for path '%@' IN %@", __PRETTY_FUNCTION__, __FILE__, __LINE__, [attributes objectForKey: NSFileModificationDate], stbuf -> st_mtim.tv_sec, stbuf -> st_mtim.tv_nsec, path, self);
 #else
     stbuf->st_mtimespec.tv_sec = t_sec;
     stbuf->st_mtimespec.tv_nsec = t_nsec;
     stbuf->st_atimespec = stbuf->st_mtimespec;  // Default to mtime
     stbuf->st_ctimespec = stbuf->st_mtimespec;  // Default to mtime
+//    NSLog (@"Fuse: DEBUG: %s, %s{%u}: NSModificationDate %@, timespec %lu,%lu for path '%@' IN %@", __PRETTY_FUNCTION__, __FILE__, __LINE__, [attributes objectForKey: NSFileModificationDate], stbuf -> st_mtimespec.tv_sec, stbuf -> st_mtimespec.tv_nsec, path, self);
 #endif	/* defined (__linux__) */
   }
   NSDate* adate = [attributes objectForKey:kGMUserFileSystemFileAccessDateKey];
@@ -1049,6 +1059,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   NSNumber* size = [attributes objectForKey:NSFileSize];
   if (size) {
     stbuf->st_size = [size longLongValue];
+//    NSLog (@"Fuse: DEBUG: %s, %s{%u}: NSFileSize %@, file size %llu for path '%@' IN %@", __PRETTY_FUNCTION__, __FILE__, __LINE__, [attributes objectForKey: NSFileSize], (unsigned long long) stbuf -> st_size, path, self);
   }
 
   // Set the number of blocks used so that Finder will display size on disk 
@@ -1071,7 +1082,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
 
 	// CJEC, 13-Oct-21: Add support for the device file's INodeID
  	// Device file number
-  NSNumber *device = [attributes objectForKey: NSFileSystemFileNumber];
+  NSNumber *device = [attributes objectForKey: NSFileDeviceIdentifier];
   if (device) {
     stbuf->st_dev = (dev_t) [device intValue];
   }
@@ -1864,12 +1875,20 @@ static void* fusefm_init(struct fuse_conn_info* conn) {
 	/* CJEC, 9-Jul-19: Enable atomic O_TRUNC support in open().
   
     	Note: Currently (OSXFUSE 3.8.3) this is not needed as -[BoxAFSFuseFD truncateToOffset: error:]
-      			provides an alternative when mounted with the "nosyncwrites" mount option
+      			provides an alternative when mounted with the "nosyncwrites" mount option. Unfortunately,
+            on Linux, this results in an intermediate 0 byte version being created, which is very
+            undesirable.
    
-     CJEC, 12-Oct-20: TODO: Do we need this capability for fuse on Linux, FreeBSD, etc.?
+     CJEC, 12-Oct-20: TODO: Optimise. Do we need this capability for fuse on macOS, FreeBSD, etc. to
+     													avoid the double version problem?
+                              Also, what about the other generic capabilities? FUSE_CAP_BIG_WRITES in
+                              particular looks desirable on all platforms, and FUSE_CAP_SPLICE_WRITE &
+                              FUSE_CAP_SPLICE_READ look useful on Linux. (splice(2) is Linux-specific.)
   */
-  // SET_CAPABILITY(conn, FUSE_CAP_ATOMIC_O_TRUNC, true);
-	
+
+  SET_CAPABILITY(conn, FUSE_CAP_ATOMIC_O_TRUNC, true);
+  NSLog (@"Fuse: INFORMATION: Enabled FUSE_CAP_ATOMIC_O_TRUNC");
+
   [pool release];
   return fs;
 }
