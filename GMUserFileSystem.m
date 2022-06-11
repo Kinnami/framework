@@ -454,6 +454,8 @@ static int	Unmount (NSArray * a_poaoArgs)
     NSArray* args = [NSArray arrayWithObjects:@"-v", [internal_ mountPath], nil];
     Unmount (args);
   }
+  else
+  	NSLog (@"Fuse: ERROR: File system '%@' is not mounted IN %@", [internal_ mountPath], self);
 }
 
 - (BOOL)invalidateItemAtPath:(NSString *)path error:(NSError **)error {
@@ -568,10 +570,16 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
       [internal_ setSupportsCaseSensitiveNames:[supports boolValue]];
     }
 
+#if defined (__APPLE__)
+		/* The exchangedata(2) system call is only available on OS X/Darwin and is deprecated as of
+  		OS X 10.13 in favour of renamex_np(2) and renameatx_np(2), which are very similar to
+      the Linux renameat2(2) system call.
+    */
     supports = [attribs objectForKey:kGMUserFileSystemVolumeSupportsExchangeDataKey];
     if (supports) {
       [internal_ setSupportsExchangeData:[supports boolValue]];
     }
+#endif	/* defined (__APPLE__) */
 
     supports = [attribs objectForKey:kGMUserFileSystemVolumeSupportsExtendedDatesKey];
     if (supports) {
@@ -1884,10 +1892,27 @@ static void* fusefm_init(struct fuse_conn_info* conn) {
                               Also, what about the other generic capabilities? FUSE_CAP_BIG_WRITES in
                               particular looks desirable on all platforms, and FUSE_CAP_SPLICE_WRITE &
                               FUSE_CAP_SPLICE_READ look useful on Linux. (splice(2) is Linux-specific.)
+   														FUSE_CAP_BIG_WRITES is ignored in OS X/Darwin and is not referenced in the
+                              OSXFUSE kernel extension so has been disabled for OS X/Darwin.
+                              FUSE_CAP_SPLICE_WRITE seems to make a difference for the ROS project I/O
+                              pattern, (which creates/truncates many small files,) but needs more
+                              investigation.
   */
 
   SET_CAPABILITY(conn, FUSE_CAP_ATOMIC_O_TRUNC, true);
   NSLog (@"Fuse: INFORMATION: Enabled FUSE_CAP_ATOMIC_O_TRUNC");
+
+#if !defined (__APPLE__)
+  SET_CAPABILITY(conn, FUSE_CAP_BIG_WRITES, true);
+  NSLog (@"Fuse: INFORMATION: Enabled FUSE_CAP_BIG_WRITES");
+#endif	/* !defined (__APPLE__) */
+
+#if defined (__linux__)
+// 	SET_CAPABILITY(conn, FUSE_CAP_SPLICE_READ, true);
+// 	NSLog (@"Fuse: INFORMATION: Enabled FUSE_CAP_SPLICE_READ");
+	SET_CAPABILITY(conn, FUSE_CAP_SPLICE_WRITE, true);
+	NSLog (@"Fuse: INFORMATION: Enabled FUSE_CAP_SPLICE_WRITE");
+#endif	/* defined (__linux__) */
 
   [pool release];
   return fs;
