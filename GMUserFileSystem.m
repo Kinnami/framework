@@ -75,7 +75,10 @@
 #include <sys/statfs.h>
 #endif	/* defined (__linux__) */
 
+#if !defined (__linux__)
 #include <sys/sysctl.h>
+#endif	/* !defined (__linux__) */
+
 #include <sys/utsname.h>
 
 #if defined (__APPLE__) || defined (__FreeBSD__)
@@ -973,6 +976,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
 
 #if defined (__APPLE__) || defined (__FreeBSD__)
   // flags
+  // CJEC, 15-Jul-22: TODO: Support Linux INode flags, which are very similar. https://man7.org/linux/man-pages/man2/ioctl_iflags.2.html 
   NSNumber* flags = [attributes objectForKey:kGMUserFileSystemFileFlagsKey];
   if (flags) {
     stbuf->st_flags = [flags longValue];
