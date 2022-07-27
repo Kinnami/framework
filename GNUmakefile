@@ -179,18 +179,18 @@ endif
 # Libaries. Must be specified for Windows when linking a DLL. https://www.msys2.org/wiki/Porting/
 ifeq ($(GNUSTEP_HOST_OS), mingw32)
 # Note: Assuming this is Windows 10
-	$(FRAMEWORK_NAME)_LIB_DIRS 			= -L$(AMISHARE_BASE)/src/libTracelog/src/$(AMISHARE_TARGET)/obj -lTracelog
+	$(FRAMEWORK_NAME)_LIB_DIRS 			= -L$(AMISHARE_BASE)/src/libTracelog/src/$(AMISHARE_TARGET)/obj/$(AMISHARE_TARGET_ARCH) -lTracelog
 else
 	ifeq ($(GNUSTEP_HOST_OS), linux-gnu)
 # 64 bit Linux requires libfuse
-		$(FRAMEWORK_NAME)_LIB_DIRS		= -L$(AMISHARE_BASE)/src/libTracelog/src/$(AMISHARE_TARGET)/obj -lTracelog -lfuse
+		$(FRAMEWORK_NAME)_LIB_DIRS		= -L$(AMISHARE_BASE)/src/libTracelog/src/$(AMISHARE_TARGET)/obj/$(AMISHARE_TARGET_ARCH) -lTracelog -lfuse
 	else
 		ifeq ($(GNUSTEP_HOST_OS), linux-gnueabihf)
 # 32 bit ARM Linux (Tested on Raspberry Pi 0W, Pi 0W2) requires libfuse
-			$(FRAMEWORK_NAME)_LIB_DIRS		= -L$(AMISHARE_BASE)/src/libTracelog/src/$(AMISHARE_TARGET)/obj -lTracelog -lfuse
+			$(FRAMEWORK_NAME)_LIB_DIRS		= -L$(AMISHARE_BASE)/src/libTracelog/src/$(AMISHARE_TARGET)/obj/$(AMISHARE_TARGET_ARCH) -lTracelog -lfuse
 		else
 			ifeq ($(GNUSTEP_HOST_OS), freebsd)
-				$(FRAMEWORK_NAME)_LIB_DIRS	= -L$(AMISHARE_BASE)/src/libTracelog/src/$(AMISHARE_TARGET)/obj -lTracelog
+				$(FRAMEWORK_NAME)_LIB_DIRS	= -L$(AMISHARE_BASE)/src/libTracelog/src/$(AMISHARE_TARGET)/obj/$(AMISHARE_TARGET_ARCH) -lTracelog
 			endif
 		endif
 	endif
