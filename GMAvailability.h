@@ -42,6 +42,7 @@
 
 #if defined (__linux__)
 #define _GNU_SOURCE					1			/* Required for dladdr() and struct Dl_info on Linux */
+#define _FILE_OFFSET_BITS			64			/* Always use 64 bit inode definitions for things like struct stat */
 #endif	/* defined (__linux__) */
 
 /* Include the essential Objective C environment umbrella header file(s) */

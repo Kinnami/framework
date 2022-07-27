@@ -123,6 +123,16 @@ ifeq ($(GNUSTEP_HOST_OS), linux-gnu)
 	$(FRAMEWORK_NAME)_TARGET_OBJCCFLAGS =
     $(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=/usr/bin/ld.gold
 endif
+ifeq ($(GNUSTEP_HOST_OS), linux-gnueabihf)
+	$(FRAMEWORK_NAME)_USING_CLANG = 1
+	$(FRAMEWORK_NAME)_USING_GCC = 0
+	$(FRAMEWORK_NAME)_TARGET_CPPFLAGS = -D_GNU_SOURCE
+	$(FRAMEWORK_NAME)_TARGET_CFLAGS =
+	$(FRAMEWORK_NAME)_TARGET_CCFLAGS =
+	$(FRAMEWORK_NAME)_TARGET_OBJCFLAGS =
+	$(FRAMEWORK_NAME)_TARGET_OBJCCFLAGS =
+    $(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=/usr/bin/ld.gold
+endif
 ifeq ($(GNUSTEP_HOST_OS), freebsd)
 	$(FRAMEWORK_NAME)_USING_CLANG = 1
 	$(FRAMEWORK_NAME)_USING_GCC = 0
@@ -172,11 +182,16 @@ ifeq ($(GNUSTEP_HOST_OS), mingw32)
 	$(FRAMEWORK_NAME)_LIB_DIRS 			= -L$(AMISHARE_BASE)/src/libTracelog/src/$(AMISHARE_TARGET)/obj -lTracelog
 else
 	ifeq ($(GNUSTEP_HOST_OS), linux-gnu)
-# Linux requires libfuse
+# 64 bit Linux requires libfuse
 		$(FRAMEWORK_NAME)_LIB_DIRS		= -L$(AMISHARE_BASE)/src/libTracelog/src/$(AMISHARE_TARGET)/obj -lTracelog -lfuse
 	else
-		ifeq ($(GNUSTEP_HOST_OS), freebsd)
-			$(FRAMEWORK_NAME)_LIB_DIRS	= -L$(AMISHARE_BASE)/src/libTracelog/src/$(AMISHARE_TARGET)/obj -lTracelog
+		ifeq ($(GNUSTEP_HOST_OS), linux-gnueabihf)
+# 32 bit ARM Linux (Tested on Raspberry Pi 0W, Pi 0W2) requires libfuse
+			$(FRAMEWORK_NAME)_LIB_DIRS		= -L$(AMISHARE_BASE)/src/libTracelog/src/$(AMISHARE_TARGET)/obj -lTracelog -lfuse
+		else
+			ifeq ($(GNUSTEP_HOST_OS), freebsd)
+				$(FRAMEWORK_NAME)_LIB_DIRS	= -L$(AMISHARE_BASE)/src/libTracelog/src/$(AMISHARE_TARGET)/obj -lTracelog
+			endif
 		endif
 	endif
 endif
