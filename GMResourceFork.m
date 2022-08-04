@@ -237,7 +237,7 @@ typedef struct {
       UInt32 dataOffset = [resourceData length];
       referenceItem.resid = htons([resource resID]);
       referenceItem.nameListOffset = 
-        htons((name == nil) ? (SInt16)(-1) : [nameListData length]);
+        htons((name == nil) ? (SInt16)(-1) : (SInt16) [nameListData length]);
       referenceItem.attributes = 0;  // TODO: Support attributes?
       referenceItem.resourceDataOffset1 = (dataOffset & 0x00FF0000) >> 16;
       referenceItem.resourceDataOffset2 = (dataOffset & 0x0000FF00) >> 8;

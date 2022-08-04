@@ -326,6 +326,7 @@ static int	Unmount (NSArray * a_poaoArgs)
 // standard posix errno values.
 + (NSError *)errorWithCode:(int)code;
 
+- (void)postMountError:(NSError *)error;
 - (void)mount:(NSDictionary *)args;
 - (void)waitUntilMounted:(NSNumber *)fileDescriptor;
 
@@ -967,8 +968,8 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   // user and group IDs for the current process are used as defaults.
   NSNumber* uid = [attributes objectForKey:NSFileOwnerAccountID];
   NSNumber* gid = [attributes objectForKey:NSFileGroupOwnerAccountID];
-  stbuf->st_uid = uid ? [uid longValue] : geteuid();
-  stbuf->st_gid = gid ? [gid longValue] : getegid();
+  stbuf->st_uid = uid ? [uid unsignedLongValue] : geteuid();
+  stbuf->st_gid = gid ? [gid unsignedLongValue] : getegid();
 
   // nlink
   NSNumber* nlink = [attributes objectForKey:NSFileReferenceCount];
@@ -1433,6 +1434,8 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
                     offset:(fuse_off_t)offset 
                      error:(NSError **)error
                    handled:(BOOL*)handled {
+	(void) path;										/* Avoid unused argument compiler warning */
+
   if (userData != nil &&
       [userData respondsToSelector:@selector(truncateToOffset:error:)]) {
     *handled = YES;
@@ -2264,6 +2267,9 @@ static int fusefm_fallocate(const char* path, int mode, fuse_off_t offset, fuse_
 
 #if defined (__APPLE__)
 static int fusefm_exchange(const char* p1, const char* p2, unsigned long opts) {
+
+	(void) opts;												/* Avoid unused argument compiler warning */
+
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
   int ret = -ENOSYS;
   @try {
@@ -2327,6 +2333,7 @@ static int fusefm_setvolname(const char* name) {
 		fusefm_statfs_x() is a better alternative
 		and is used instead.
 */
+#if !defined (__APPLE__)
 static int	fusefm_statfs (const char * a_pszPath, struct statvfs * a_pStatVFS)
 	{
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
@@ -2347,6 +2354,7 @@ static int	fusefm_statfs (const char * a_pszPath, struct statvfs * a_pStatVFS)
   [pool release];
   return ret;
   }
+#endif	/* !defined (__APPLE__) */
 
 static int fusefm_fgetattr(const char *path, struct stat *stbuf, 
                            struct fuse_file_info* fi) {
@@ -2515,6 +2523,7 @@ static int fusefm_setattr_x(const char* path, struct setattr_x* attrs) {
 
     CJEC, 14-Oct-20: TODO: FreeBSD: What about chflags(2)? See https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=238197
 */
+#if !defined (__APPLE__)
 static int	fusefm_utimens (const char * a_pszPath, const struct timespec a_TimeSpecs [2])
 	{
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
@@ -2621,6 +2630,8 @@ static int	fusefm_ftruncate (const char * a_pszPath, fuse_off_t a_cbSize, struct
   [pool release];
   return ret;
   }
+
+#endif	/* !defined (__APPLE__) */
 
 static int fusefm_listxattr(const char *path, char *list, size_t size)
 {
@@ -2854,7 +2865,7 @@ static struct fuse_operations fusefm_oper = {
   int ret = statfs([[internal_ mountPath] UTF8String], &statfs_buf);
   if (ret == 0) {
 #if defined (__APPLE__)
-    if (statfs_buf.f_fssubtype == (short)(-1)) {
+    if (statfs_buf.f_fssubtype == (uint32_t)(-1)) {
       // We use a special indicator value from FUSE in the f_fssubtype field to
       // indicate that the currently mounted filesystem is dead. It probably
       // crashed and was never unmounted.

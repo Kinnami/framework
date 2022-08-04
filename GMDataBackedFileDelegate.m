@@ -63,6 +63,8 @@
                size:(size_t)size 
              offset:(fuse_off_t)offset 
               error:(NSError **)error {
+  (void) error;																			/* Avoid unused parameter compiler warning */
+
   size_t len = [data_ length];
   if (offset > (fuse_off_t) len) {
     return 0;  // No data to read.
@@ -94,6 +96,9 @@
                  error:(NSError **)error {
   // Take the lazy way out.  We just extend the NSData to be as large as needed
   // and then replace whatever bytes they want to write.
+
+  (void) error;																			/* Avoid unused parameter compiler warning */
+
   NSMutableData* data = (NSMutableData*)[self data];
   if ([data length] < (offset + size)) {
     int bytesBeyond = (offset + size) - [data length];
@@ -106,6 +111,8 @@
 
 - (BOOL)truncateToOffset:(fuse_off_t)offset 
                    error:(NSError **)error {
+  (void) error;																			/* Avoid unused parameter compiler warning */
+
   NSMutableData* data = (NSMutableData*)[self data];
   [data setLength:offset];
   return YES;

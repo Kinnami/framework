@@ -90,10 +90,10 @@ typedef off_t						fuse_off_t;	/* off_t should always be defined to be 64 bits w
 
 #endif	/* defined (_WIN32) */
 
-#define GM_OSXFUSE_2_0 020000
-#define GM_OSXFUSE_3_0 030000
-#define GM_OSXFUSE_3_5 030500
-#define GM_OSXFUSE_3_8 030800
+#define GM_OSXFUSE_2_0 20000
+#define GM_OSXFUSE_3_0 30000
+#define GM_OSXFUSE_3_5 30500
+#define GM_OSXFUSE_3_8 30800
 
 #ifdef GM_VERSION_MIN_REQUIRED
 
