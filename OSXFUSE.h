@@ -36,7 +36,21 @@
 //  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED  OF  THE
 //  POSSIBILITY OF SUCH DAMAGE.
 
+/* CJEC, 17-Jul-20: TODO: FIXME: Building on GNUstep expects the frameworks to already have been installed in the Library area.
+									But OS X/Darwiin currently builds the frameworks during the main build, to make it easier
+									to debug them on. Consequently, the header files aren't in the right place yet.
+									This needs to be fixed before production deployment.
+*/
+#if defined (__APPLE__)
+#import "GMAvailability.h"
+#import "GMUserFileSystem.h"
+#import "GMFinderInfo.h"
+#import "GMResourceFork.h"
+
+#else
 #import <OSXFUSE/GMAvailability.h>
 #import <OSXFUSE/GMUserFileSystem.h>
 #import <OSXFUSE/GMFinderInfo.h>
 #import <OSXFUSE/GMResourceFork.h>
+
+#endif	/* defined (__APPLE__) */
