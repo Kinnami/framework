@@ -248,12 +248,6 @@
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = (
-					"$(inherited)",
-					/opt/local/lib,
-					"/Applications/Xcode-6_4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include",
-				);
-				LIBRARY_SEARCH_PATHS = /opt/local/lib;
 				OSXFUSE_BUNDLE_IDENTIFIER_PREFIX = com.github.osxfuse;
 				OSXFUSE_DISPLAY_NAME = OSXFUSE;
 				OSXFUSE_VERSION = 3.0.0;
@@ -281,12 +275,6 @@
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = (
-					"$(inherited)",
-					/opt/local/lib,
-					"/Applications/Xcode-6_4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include",
-				);
-				LIBRARY_SEARCH_PATHS = /opt/local/lib;
 				OSXFUSE_BUNDLE_IDENTIFIER_PREFIX = com.github.osxfuse;
 				OSXFUSE_DISPLAY_NAME = OSXFUSE;
 				OSXFUSE_VERSION = 3.0.0;

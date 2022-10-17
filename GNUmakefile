@@ -145,7 +145,7 @@ ifeq ($(GNUSTEP_HOST_OS), freebsd)
 endif
 
 # Framework preprocessor, compiler and linker flags and include directories
-$(FRAMEWORK_NAME)_INCLUDE_DIRS	= -I$(AMISHARE_BASE)/src/libTracelog/src -I$(AMISHARE_BASE)/src/libTracelog -I/usr/include/gnutls -I/usr/include/openssl
+$(FRAMEWORK_NAME)_INCLUDE_DIRS	= -I$(AMISHARE_BASE)/ReplicatingPeer/src/libTracelog/src -I$(AMISHARE_BASE)/ReplicatingPeer/src/libTracelog -I/usr/include/gnutls -I/usr/include/openssl
 
 # Now create the full set of compiler flags in the correct order, to allow them to be overridden
 #	if necessary
@@ -179,18 +179,18 @@ endif
 # Libaries. Must be specified for Windows when linking a DLL. https://www.msys2.org/wiki/Porting/
 ifeq ($(GNUSTEP_HOST_OS), mingw32)
 # Note: Assuming this is Windows 10
-	$(FRAMEWORK_NAME)_LIB_DIRS 			= -L$(AMISHARE_BASE)/src/libTracelog/src/$(AMISHARE_TARGET)/obj/$(AMISHARE_TARGET_BINARY) -lTracelog
+	$(FRAMEWORK_NAME)_LIB_DIRS 			= -L$(AMISHARE_BASE)/ReplicatingPeer/src/libTracelog/src/$(AMISHARE_TARGET)/obj/$(AMISHARE_TARGET_BINARY) -lTracelog
 else
 	ifeq ($(GNUSTEP_HOST_OS), linux-gnu)
 # 64 bit Linux requires libfuse
-		$(FRAMEWORK_NAME)_LIB_DIRS		= -L$(AMISHARE_BASE)/src/libTracelog/src/$(AMISHARE_TARGET)/obj/$(AMISHARE_TARGET_BINARY) -lTracelog -lfuse
+		$(FRAMEWORK_NAME)_LIB_DIRS		= -L$(AMISHARE_BASE)/ReplicatingPeer/src/libTracelog/src/$(AMISHARE_TARGET)/obj/$(AMISHARE_TARGET_BINARY) -lTracelog -lfuse
 	else
 		ifeq ($(GNUSTEP_HOST_OS), linux-gnueabihf)
 # 32 bit ARM Linux (Tested on Raspberry Pi 0W, Pi 0W2) requires libfuse
-			$(FRAMEWORK_NAME)_LIB_DIRS		= -L$(AMISHARE_BASE)/src/libTracelog/src/$(AMISHARE_TARGET)/obj/$(AMISHARE_TARGET_BINARY) -lTracelog -lfuse
+			$(FRAMEWORK_NAME)_LIB_DIRS		= -L$(AMISHARE_BASE)/ReplicatingPeer/src/libTracelog/src/$(AMISHARE_TARGET)/obj/$(AMISHARE_TARGET_BINARY) -lTracelog -lfuse
 		else
 			ifeq ($(GNUSTEP_HOST_OS), freebsd)
-				$(FRAMEWORK_NAME)_LIB_DIRS	= -L$(AMISHARE_BASE)/src/libTracelog/src/$(AMISHARE_TARGET)/obj/$(AMISHARE_TARGET_BINARY) -lTracelog
+				$(FRAMEWORK_NAME)_LIB_DIRS	= -L$(AMISHARE_BASE)/ReplicatingPeer/src/libTracelog/src/$(AMISHARE_TARGET)/obj/$(AMISHARE_TARGET_BINARY) -lTracelog
 			endif
 		endif
 	endif
