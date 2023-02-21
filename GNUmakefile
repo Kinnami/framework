@@ -14,6 +14,8 @@ include $(GNUSTEP_MAKEFILES)/common.make
 # Note: There is not much documentation. Read $GNUSTEP_MAKEFILES/Instance/framework.make for information
 FRAMEWORK_NAME = OSXFUSE
 
+BASE_USR_DIR="$(HOME)/.."
+
 # Framework compiled version name (default "0")
 #$(FRAMEWORK_NAME)_CURRENT_VERSION_NAME =
 
@@ -121,7 +123,7 @@ ifeq ($(GNUSTEP_HOST_OS), linux-gnu)
 	$(FRAMEWORK_NAME)_TARGET_CCFLAGS =
 	$(FRAMEWORK_NAME)_TARGET_OBJCFLAGS =
 	$(FRAMEWORK_NAME)_TARGET_OBJCCFLAGS =
-    $(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=/usr/bin/ld.gold
+    $(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=$(BASE_USR_DIR)/usr/bin/ld.gold
 endif
 ifeq ($(GNUSTEP_HOST_OS), linux-gnueabihf)
 	$(FRAMEWORK_NAME)_USING_CLANG = 1
@@ -131,7 +133,7 @@ ifeq ($(GNUSTEP_HOST_OS), linux-gnueabihf)
 	$(FRAMEWORK_NAME)_TARGET_CCFLAGS =
 	$(FRAMEWORK_NAME)_TARGET_OBJCFLAGS =
 	$(FRAMEWORK_NAME)_TARGET_OBJCCFLAGS =
-    $(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=/usr/bin/ld.gold
+    $(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=$(BASE_USR_DIR)/usr/bin/ld.gold
 endif
 ifeq ($(GNUSTEP_HOST_OS), freebsd)
 	$(FRAMEWORK_NAME)_USING_CLANG = 1
@@ -141,7 +143,7 @@ ifeq ($(GNUSTEP_HOST_OS), freebsd)
 	$(FRAMEWORK_NAME)_TARGET_CCFLAGS =
 	$(FRAMEWORK_NAME)_TARGET_OBJCFLAGS =
 	$(FRAMEWORK_NAME)_TARGET_OBJCCFLAGS =
-    $(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=/usr/local/bin/ld.gold
+    $(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=$(BASE_USR_DIR)/usr/local/bin/ld.gold
 endif
 
 # Framework preprocessor, compiler and linker flags and include directories

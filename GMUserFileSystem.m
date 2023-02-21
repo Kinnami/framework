@@ -223,6 +223,12 @@ static int	Unmount (NSArray * a_poaoArgs)
       iErrno = EINVAL;
       break;
       }
+	case 32:  // On Android, /bin/umount returns 32 when not mounted.
+      {
+	iErrno = EINVAL;
+	break;
+      }
+	
     default:
     	{
       NSLog (@"Fuse: FATAL ERROR: UNEXPECTED: '%@': exit code %i. Returning EPERM", poszUnmount, iExitCode);
@@ -3008,7 +3014,9 @@ static struct fuse_operations fusefm_oper = {
     [[internal_ delegate] willMount];
   }
   [pool release];
+  NSLog(@"Starting fuse_main");
   ret = fuse_main(argc, (char **)argv, &fusefm_oper, self);
+  NSLog(@"Ending fuse_main");
 
   pool = [[NSAutoreleasePool alloc] init];
 
