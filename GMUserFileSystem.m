@@ -925,7 +925,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   }
 
   // Inode
-  /* CJEC, 23-Dec-20: TODO: OSXFUSE 3.10.5 documents a problem with 64 bit INodeIDs losing the top 32 bits
+  /* CJEC, 23-Dec-20: TODO: OSXFUSE 3.10.5 documents a problem with 64-bit INodeIDs losing the top 32 bits
   														due to a kernel problem https://github.com/osxfuse/osxfuse/releases/tag/osxfuse-3.10.5 
                               This fix needs to be applied to this code base, or use Benjamin Fleischer's modern
                               macFUSE 4.x, which is not open source.

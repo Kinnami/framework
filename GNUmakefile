@@ -82,7 +82,7 @@ $(FRAMEWORK_NAME)_CLANG_LDFLAGS = -rdynamic -pthread -fexceptions -fobjc-runtime
 #							because static libraries have a related visibility
 #							problem
 #
-# CJEC, 15-Jul-20: TODO: On Windows7+ 64 bit with clang and libobjc4 (the GNUstep 2.0
+# CJEC, 15-Jul-20: TODO: On Windows7+ 64-bit with clang and libobjc4 (the GNUstep 2.0
 #							Objective C runtime library labelled libobjc2 at Github,)
 #							the above is almost certainly not what we want.
 #							We should use dynamic linking whereever possible in case
@@ -184,11 +184,11 @@ ifeq ($(GNUSTEP_HOST_OS), mingw32)
 	$(FRAMEWORK_NAME)_LIB_DIRS 			= -L$(AMISHARE_BASE)/ReplicatingPeer/src/libTracelog/src/$(AMISHARE_TARGET)/obj/$(AMISHARE_TARGET_BINARY) -lTracelog
 else
 	ifeq ($(GNUSTEP_HOST_OS), linux-gnu)
-# 64 bit Linux requires libfuse
+# 64-bit Linux requires libfuse
 		$(FRAMEWORK_NAME)_LIB_DIRS		= -L$(AMISHARE_BASE)/ReplicatingPeer/src/libTracelog/src/$(AMISHARE_TARGET)/obj/$(AMISHARE_TARGET_BINARY) -lTracelog -lfuse
 	else
 		ifeq ($(GNUSTEP_HOST_OS), linux-gnueabihf)
-# 32 bit ARM Linux (Tested on Raspberry Pi 0W, Pi 0W2) requires libfuse
+# 32-bit ARM Linux (Tested on Raspberry Pi 0W, Pi 0W2) requires libfuse
 			$(FRAMEWORK_NAME)_LIB_DIRS		= -L$(AMISHARE_BASE)/ReplicatingPeer/src/libTracelog/src/$(AMISHARE_TARGET)/obj/$(AMISHARE_TARGET_BINARY) -lTracelog -lfuse
 		else
 			ifeq ($(GNUSTEP_HOST_OS), freebsd)

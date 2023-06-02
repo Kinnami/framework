@@ -37,12 +37,12 @@
 #endif	/* defined (_WIN32) */
 
 #if defined (__APPLE__)
-#define _DARWIN_USE_64_BIT_INODE	1			/* Note: Always use 64 bit ino_t inode definitions for things like struct stat */
+#define _DARWIN_USE_64_BIT_INODE	1			/* Note: Always use 64-bit ino_t inode definitions for things like struct stat */
 #endif	/* defined (__APPLE__) */
 
 #if defined (__linux__)
 #define _GNU_SOURCE					1			/* Required for dladdr() and struct Dl_info on Linux */
-#define _FILE_OFFSET_BITS			64			/* Always use 64 bit inode definitions for things like struct stat */
+#define _FILE_OFFSET_BITS			64			/* Always use 64-bit inode definitions for things like struct stat */
 #endif	/* defined (__linux__) */
 
 /* Include the essential Objective C environment umbrella header file(s) */
@@ -56,14 +56,14 @@
 /* Note: fuse.h defined fuse_ino_t, so don't define it here */
 
 #if defined (__MINGW64__)
-typedef off64_t						fuse_off_t;	/* off_t is 32 bits wide on Windows (32 and 64 bit). Always define fuse_off_t to be a 64 bit integer. MINGW64: off64_t is defined in _mingw_off_t.h */
+typedef off64_t						fuse_off_t;	/* off_t is 32 bits wide on Windows (32 and 64-bit). Always define fuse_off_t to be a 64-bit integer. MINGW64: off64_t is defined in _mingw_off_t.h */
 #else
 #error "Windows: Not MINGW64. Need to define fuse_off_t"
 #endif	/* defined (__MINGW64__) */
 
-typedef uint64_t					fuse_nlink_t;	/* Modern UNIX uses a 64 bit quantity for the number of hard links */
-typedef uint32_t					fuse_uid_t;		/* Modern UNIX uses a 32 bit quantity for User IDs (UID) */
-typedef uint32_t					fuse_gid_t;	/* Modern UNIX uses a 32 bit quantity for Group IDs (GID) */
+typedef uint64_t					fuse_nlink_t;	/* Modern UNIX uses a 64-bit quantity for the number of hard links */
+typedef uint32_t					fuse_uid_t;		/* Modern UNIX uses a 32-bit quantity for User IDs (UID) */
+typedef uint32_t					fuse_gid_t;	/* Modern UNIX uses a 32-bit quantity for Group IDs (GID) */
 
 struct fuse_stat64_ino64						/* Based on struct _stat64 in _mingw_stat64.h, this uses discrete types and ensures that the INodeID is 64 bits wide to match modern UNIX */
 	{
