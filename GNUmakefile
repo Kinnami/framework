@@ -185,7 +185,7 @@ ifeq ($(GNUSTEP_HOST_OS), mingw32)
 else
 	ifeq ($(GNUSTEP_HOST_OS), linux-gnu)
 # 64-bit Linux requires libfuse
-		$(FRAMEWORK_NAME)_LIB_DIRS		= -L$(AMISHARE_BASE)/ReplicatingPeer/src/libTracelog/src/$(AMISHARE_TARGET)/obj/$(AMISHARE_TARGET_BINARY) -lTracelog -lfuse
+		$(FRAMEWORK_NAME)_LIB_DIRS		= -L$(AMISHARE_BASE)/ReplicatingPeer/src/libTracelog/src/$(AMISHARE_TARGET)/obj/$(AMISHARE_TARGET_BINARY) -lTracelog #-lfuse
 	else
 		ifeq ($(GNUSTEP_HOST_OS), linux-gnueabihf)
 # 32-bit ARM Linux (Tested on Raspberry Pi 0W, Pi 0W2) requires libfuse
