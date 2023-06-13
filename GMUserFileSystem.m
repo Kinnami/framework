@@ -366,7 +366,7 @@ static int	Unmount (NSArray * a_poaoArgs)
 @implementation GMUserFileSystem
 
 + (NSDictionary *)currentContext {
-  struct fuse_context* context = fuse_get_context();
+  struct fuse_context* context; // = fuse_get_context();
   if (!context) {
     return nil;
   }
@@ -507,7 +507,7 @@ static int	Unmount (NSArray * a_poaoArgs)
 }
 
 + (GMUserFileSystem *)currentFS {
-  struct fuse_context* context = fuse_get_context();
+  struct fuse_context* context; // = fuse_get_context();
   assert(context);
   return (GMUserFileSystem *)context->private_data;
 }
@@ -559,7 +559,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
 }
 
 - (void)fuseInit {
-  struct fuse_context* context = fuse_get_context();
+  struct fuse_context* context; // = fuse_get_context();
 
   [internal_ setHandle:context->fuse];
   [internal_ setStatus:GMUserFileSystem_INITIALIZING];
@@ -606,9 +606,9 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   // back through the kernel after this routine returns. In order to post
   // the kGMUserFileSystemDidMount notification we start a new thread that will
   // poll until it is mounted.
-  struct fuse_session* se = fuse_get_session(context->fuse);
-  struct fuse_chan* chan = fuse_session_next_chan(se, NULL);
-  int fd = fuse_chan_fd(chan);
+  struct fuse_session* se; // fuse_get_session(context->fuse);
+  struct fuse_chan* chan; // fuse_session_next_chan(se, NULL);
+  int fd;// = fuse_chan_fd(chan);
   
   [NSThread detachNewThreadSelector:@selector(waitUntilMounted:)
                            toTarget:self
@@ -3015,7 +3015,7 @@ static struct fuse_operations fusefm_oper = {
   }
   [pool release];
   NSLog(@"Starting fuse_main");
-  ret = fuse_main(argc, (char **)argv, &fusefm_oper, self);
+  //  ret = fuse_main(argc, (char **)argv, &fusefm_oper, self);
   NSLog(@"Ending fuse_main");
 
   pool = [[NSAutoreleasePool alloc] init];
