@@ -105,6 +105,14 @@
 //			the #import.
 #define GM_EXPORT					__attribute__((visibility("default")))
 
+#if !defined (GM_EXPORT_INTERFACE)
+#if defined (__clang__) || defined (__APPLE__)
+#define	GM_EXPORT_INTERFACE			GM_EXPORT
+#else
+#define GM_EXPORT_INTERFACE
+#endif	/* defined (__clang__) || defined (__APPLE__) */
+#endif	/* !defined (GM_EXPORT_INTERFACE) */
+
 // Operation Context
 GM_EXPORT NSString* const kGMUserFileSystemContextUserIDKey = @"kGMUserFileSystemContextUserIDKey";
 GM_EXPORT NSString* const kGMUserFileSystemContextGroupIDKey = @"kGMUserFileSystemContextGroupIDKey";
@@ -2607,11 +2615,6 @@ static int	fusefm_chown (const char * a_pszPath, uid_t a_UID, gid_t a_GID)
   return ret;
   }
 
-static int	fusefm_truncate (const char * a_pszPath, fuse_off_t a_cbSize)
-	{
-  return fusefm_ftruncate (a_pszPath, a_cbSize, NULL);
-  }
-
 static int	fusefm_ftruncate (const char * a_pszPath, fuse_off_t a_cbSize, struct fuse_file_info * a_pFuseFileInfo)
 	{
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
@@ -2635,6 +2638,11 @@ static int	fusefm_ftruncate (const char * a_pszPath, fuse_off_t a_cbSize, struct
   @catch (id exception) { }
   [pool release];
   return ret;
+  }
+
+static int	fusefm_truncate (const char * a_pszPath, fuse_off_t a_cbSize)
+	{
+  return fusefm_ftruncate (a_pszPath, a_cbSize, NULL);
   }
 
 #endif	/* !defined (__APPLE__) */

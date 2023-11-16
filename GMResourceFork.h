@@ -46,6 +46,14 @@
 //			the #import.
 #define GM_EXPORT					__attribute__((visibility("default")))
 
+#if !defined (GM_EXPORT_INTERFACE)
+#if defined (__clang__) || defined (__APPLE__)
+#define	GM_EXPORT_INTERFACE			GM_EXPORT
+#else
+#define GM_EXPORT_INTERFACE
+#endif	/* defined (__clang__) || defined (__APPLE__) */
+#endif	/* !defined (GM_EXPORT_INTERFACE) */
+
 /*!
  * @header GMResourceFork
  *
@@ -65,7 +73,7 @@
  * header file.
  */
 
-GM_EXPORT @interface GMResourceFork : NSObject {
+GM_EXPORT_INTERFACE	@interface GMResourceFork : NSObject {
  @private
   NSMutableDictionary* resourcesByType_;
 }
@@ -105,7 +113,7 @@ GM_EXPORT @interface GMResourceFork : NSObject {
  * @class
  * @discussion This class represents a single resource in a resource fork.
  */
-GM_EXPORT @interface GMResource : NSObject {
+ @interface GMResource : NSObject {
  @private
   ResType resType_;  // FourCharCode, i.e. 'icns'
   ResID resID_;    // SInt16, i.e. 256 for webloc 'url ' contents.

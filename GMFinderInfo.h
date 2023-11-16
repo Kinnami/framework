@@ -46,6 +46,14 @@
 //			the #import.
 #define GM_EXPORT					__attribute__((visibility("default")))
 
+#if !defined (GM_EXPORT_INTERFACE)
+#if defined (__clang__) || defined (__APPLE__)
+#define	GM_EXPORT_INTERFACE			GM_EXPORT
+#else
+#define GM_EXPORT_INTERFACE
+#endif	/* defined (__clang__) || defined (__APPLE__) */
+#endif	/* !defined (GM_EXPORT_INTERFACE) */
+
 /*!
  * @header GMFinderInfo
  *
@@ -62,7 +70,7 @@
  * For more information about FinderInfo and what it can contain, see
  * the CarbonCore/Finder.h header file.
  */
-GM_EXPORT @interface GMFinderInfo : NSObject {
+GM_EXPORT_INTERFACE	@interface GMFinderInfo : NSObject {
  @private
   UInt16 flags_;
   UInt16 extendedFlags_;

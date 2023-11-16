@@ -43,7 +43,15 @@
 //			the #import.
 #define GM_EXPORT					__attribute__((visibility("default")))
 
-GM_EXPORT @interface GMDataBackedFileDelegate : NSObject {
+#if !defined (GM_EXPORT_INTERFACE)
+#if defined (__clang__) || defined (__APPLE__)
+#define	GM_EXPORT_INTERFACE			GM_EXPORT
+#else
+#define GM_EXPORT_INTERFACE
+#endif	/* defined (__clang__) || defined (__APPLE__) */
+#endif	/* !defined (GM_EXPORT_INTERFACE) */
+
+GM_EXPORT_INTERFACE	@interface GMDataBackedFileDelegate : NSObject {
  @private
   NSData* data_;
 }
@@ -60,7 +68,7 @@ GM_EXPORT @interface GMDataBackedFileDelegate : NSObject {
               error:(NSError **)error;
 @end
 
-GM_EXPORT @interface GMMutableDataBackedFileDelegate : GMDataBackedFileDelegate
+GM_EXPORT_INTERFACE	@interface GMMutableDataBackedFileDelegate : GMDataBackedFileDelegate
 
 + (GMMutableDataBackedFileDelegate *)fileDelegateWithData:(NSMutableData *)data;
 

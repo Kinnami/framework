@@ -115,6 +115,7 @@ ifeq ($(GNUSTEP_HOST_OS), mingw32)
 	$(FRAMEWORK_NAME)_TARGET_OBJCCFLAGS = -I/mingw64/x86_64-w64-mingw32/include/ddk -fobjc-exceptions -fexceptions
     $(FRAMEWORK_NAME)_TARGET_LDFLAGS = -pthread  -fexceptions
 endif
+# Note: Includes Android
 ifeq ($(GNUSTEP_HOST_OS), linux-gnu)
 	$(FRAMEWORK_NAME)_USING_CLANG = 1
 	$(FRAMEWORK_NAME)_USING_GCC = 0
@@ -125,15 +126,27 @@ ifeq ($(GNUSTEP_HOST_OS), linux-gnu)
 	$(FRAMEWORK_NAME)_TARGET_OBJCCFLAGS =
     $(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=$(BASE_USR_DIR)/usr/bin/ld.gold
 endif
+# Note: Use gcc on 32-bit Raspbian PiOS because recent updates to clang and lld broke everything
 ifeq ($(GNUSTEP_HOST_OS), linux-gnueabihf)
-	$(FRAMEWORK_NAME)_USING_CLANG = 1
-	$(FRAMEWORK_NAME)_USING_GCC = 0
+	$(FRAMEWORK_NAME)_USING_CLANG = 0
+	$(FRAMEWORK_NAME)_USING_GCC = 1
 	$(FRAMEWORK_NAME)_TARGET_CPPFLAGS = -D_GNU_SOURCE
 	$(FRAMEWORK_NAME)_TARGET_CFLAGS =
 	$(FRAMEWORK_NAME)_TARGET_CCFLAGS =
 	$(FRAMEWORK_NAME)_TARGET_OBJCFLAGS =
 	$(FRAMEWORK_NAME)_TARGET_OBJCCFLAGS =
-    $(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=$(BASE_USR_DIR)/usr/bin/ld.gold
+	ifeq ($(FRAMEWORK_NAME)_USING_CLANG, 1)
+		ifeq ($(GNUSTEP_HOST_CPU), armv7l)
+			$(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=/usr/bin/ld.lld
+		else
+			ifeq ($(GNUSTEP_HOST_CPU), armv6l)
+				$(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=/usr/bin/ld.lld
+			else
+				echo "GNUmakefile: Unknown CPU architecture $(GNUSTEP_HOST_CPU) on target platform $(GNUSTEP_HOST_OS)"
+				exit 1
+			endif
+		endif
+	endif
 endif
 ifeq ($(GNUSTEP_HOST_OS), freebsd)
 	$(FRAMEWORK_NAME)_USING_CLANG = 1
@@ -143,7 +156,7 @@ ifeq ($(GNUSTEP_HOST_OS), freebsd)
 	$(FRAMEWORK_NAME)_TARGET_CCFLAGS =
 	$(FRAMEWORK_NAME)_TARGET_OBJCFLAGS =
 	$(FRAMEWORK_NAME)_TARGET_OBJCCFLAGS =
-    $(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=$(BASE_USR_DIR)/usr/local/bin/ld.gold
+    $(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=/usr/bin/ld.lld
 endif
 
 # Framework preprocessor, compiler and linker flags and include directories
@@ -172,7 +185,6 @@ else
 		$(FRAMEWORK_NAME)_OBJCCFLAGS = $($(FRAMEWORK_NAME)_GCCCLANG_OBJCCFLAGS) $($(FRAMEWORK_NAME)_GCC_OBJCCFLAGS) $($(FRAMEWORK_NAME)_TARGET_OBJCCFLAGS)
 		$(FRAMEWORK_NAME)_LDFLAGS = $($(FRAMEWORK_NAME)_GCCCLANG_LDFLAGS) $($(FRAMEWORK_NAME)_GCC_LDFLAGS) $($(FRAMEWORK_NAME)_TARGET_LDFLAGS)
 	else
-# CJEC, 16-Dec-21: TODO: FIXME: This generates an error in the makefile, rather than reporting the error and stopping make.
 		echo "GNUmakefile: Neither $(FRAMEWORK_NAME)_USING_CLANG nor $(FRAMEWORK_NAME)_USING_GCC are true"
 		exit 1
 	endif

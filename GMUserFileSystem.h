@@ -46,6 +46,14 @@
 //			the #import.
 #define GM_EXPORT					__attribute__((visibility("default")))
 
+#if !defined (GM_EXPORT_INTERFACE)
+#if defined (__clang__) || defined (__APPLE__)
+#define	GM_EXPORT_INTERFACE			GM_EXPORT
+#else
+#define GM_EXPORT_INTERFACE
+#endif	/* defined (__clang__) || defined (__APPLE__) */
+#endif	/* !defined (GM_EXPORT_INTERFACE) */
+
 /*!
  * @header GMUserFileSystem
  *
@@ -93,7 +101,7 @@
                 parallel I/O operations. Rewriting the OSXFUSE framework to use it
                 would speed things up.
 */
-GM_EXPORT @interface GMUserFileSystem : NSObject {
+GM_EXPORT_INTERFACE	@interface GMUserFileSystem : NSObject {
  @private
   GMUserFileSystemInternal* internal_;
 }
