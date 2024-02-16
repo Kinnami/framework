@@ -103,43 +103,8 @@ $(FRAMEWORK_NAME)_CLANG_LDFLAGS = -rdynamic -pthread -fexceptions -fobjc-runtime
 #							Windows7 should be supported by MSYS2/MinGW64-w64 but the older
 #							MSYS2/MinGW32 build settings have not been upgraded yet.
 #
-ifeq ($(GNUSTEP_HOST_OS), mingw32)
-# Note: Assuming this is Windows 10
-	$(FRAMEWORK_NAME)_USING_CLANG = 0
-	$(FRAMEWORK_NAME)_USING_GCC = 1
-# Note: Need to define the value of Windows10 here so that the framework's derived source, which is automatically generated, does not fail to compile in a Windows header file
-	$(FRAMEWORK_NAME)_TARGET_CPPFLAGS = -DWindows10=0x0A00 -D_WIN32_WINNT=Windows10 -D_NATIVE_OBJC_EXCEPTIONS
-	$(FRAMEWORK_NAME)_TARGET_CFLAGS = -I/mingw64/x86_64-w64-mingw32/include/ddk
-	$(FRAMEWORK_NAME)_TARGET_CCFLAGS = -I/mingw64/x86_64-w64-mingw32/include/ddk -fexceptions
-	$(FRAMEWORK_NAME)_TARGET_OBJCFLAGS = -I/mingw64/x86_64-w64-mingw32/include/ddk -fobjc-exceptions -fexceptions
-	$(FRAMEWORK_NAME)_TARGET_OBJCCFLAGS = -I/mingw64/x86_64-w64-mingw32/include/ddk -fobjc-exceptions -fexceptions
-    $(FRAMEWORK_NAME)_TARGET_LDFLAGS = -pthread  -fexceptions
-endif
-# Note: Includes Android
-# Note: Use gcc on 64-bit riscv64 because on Ubuntu 23.04, at least, clang is broken beyond all belief. Not even the C compiler works
-ifeq ($(GNUSTEP_HOST_OS), linux-gnu)
-	ifeq ($(GNUSTEP_HOST_CPU), riscv64)
-		$(FRAMEWORK_NAME)_USING_CLANG = 0
-		$(FRAMEWORK_NAME)_USING_GCC = 1
-		$(FRAMEWORK_NAME)_TARGET_CPPFLAGS = -D_GNU_SOURCE
-		$(FRAMEWORK_NAME)_TARGET_CFLAGS =
-		$(FRAMEWORK_NAME)_TARGET_CCFLAGS =
-		$(FRAMEWORK_NAME)_TARGET_OBJCFLAGS =
-		$(FRAMEWORK_NAME)_TARGET_OBJCCFLAGS =
-		$(FRAMEWORK_NAME)_TARGET_LDFLAGS =
-	else
-		$(FRAMEWORK_NAME)_USING_CLANG = 1
-		$(FRAMEWORK_NAME)_USING_GCC = 0
-		$(FRAMEWORK_NAME)_TARGET_CPPFLAGS = -D_GNU_SOURCE
-		$(FRAMEWORK_NAME)_TARGET_CFLAGS =
-		$(FRAMEWORK_NAME)_TARGET_CCFLAGS =
-		$(FRAMEWORK_NAME)_TARGET_OBJCFLAGS =
-		$(FRAMEWORK_NAME)_TARGET_OBJCCFLAGS =
-		$(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=$(BASE_USR_DIR)/usr/bin/ld.gold
-	endif
-endif
-# Note: Use gcc on 32-bit Raspbian PiOS because recent updates to clang and lld broke everything
-ifeq ($(GNUSTEP_HOST_OS), linux-gnueabihf)
+# Determine the compiler from how GNUstep was built. See gnustep-config --variable=CC
+ifeq ($(CC), gcc)
 	$(FRAMEWORK_NAME)_USING_CLANG = 0
 	$(FRAMEWORK_NAME)_USING_GCC = 1
 	$(FRAMEWORK_NAME)_TARGET_CPPFLAGS = -D_GNU_SOURCE
@@ -147,20 +112,8 @@ ifeq ($(GNUSTEP_HOST_OS), linux-gnueabihf)
 	$(FRAMEWORK_NAME)_TARGET_CCFLAGS =
 	$(FRAMEWORK_NAME)_TARGET_OBJCFLAGS =
 	$(FRAMEWORK_NAME)_TARGET_OBJCCFLAGS =
-	ifeq ($(FRAMEWORK_NAME)_USING_CLANG, 1)
-		ifeq ($(GNUSTEP_HOST_CPU), armv7l)
-			$(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=/usr/bin/ld.lld
-		else
-			ifeq ($(GNUSTEP_HOST_CPU), armv6l)
-				$(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=/usr/bin/ld.lld
-			else
-				echo "GNUmakefile: Unknown CPU architecture $(GNUSTEP_HOST_CPU) on target platform $(GNUSTEP_HOST_OS)"
-				exit 1
-			endif
-		endif
-	endif
-endif
-ifeq ($(GNUSTEP_HOST_OS), freebsd)
+	$(FRAMEWORK_NAME)_TARGET_LDFLAGS =
+else
 	$(FRAMEWORK_NAME)_USING_CLANG = 1
 	$(FRAMEWORK_NAME)_USING_GCC = 0
 	$(FRAMEWORK_NAME)_TARGET_CPPFLAGS = -D_GNU_SOURCE
@@ -168,7 +121,19 @@ ifeq ($(GNUSTEP_HOST_OS), freebsd)
 	$(FRAMEWORK_NAME)_TARGET_CCFLAGS =
 	$(FRAMEWORK_NAME)_TARGET_OBJCFLAGS =
 	$(FRAMEWORK_NAME)_TARGET_OBJCCFLAGS =
-    $(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=/usr/bin/ld.lld
+	$(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=$(BASE_USR_DIR)/usr/bin/ld.gold
+endif
+
+# Identify platform-specific options
+ifeq ($(GNUSTEP_HOST_OS), mingw32)
+# Note: Assuming this is Windows 10
+# Note: Need to define the value of Windows10 here so that the framework's derived source, which is automatically generated, does not fail to compile in a Windows header file
+	$(FRAMEWORK_NAME)_TARGET_CPPFLAGS = -DWindows10=0x0A00 -D_WIN32_WINNT=Windows10 -D_NATIVE_OBJC_EXCEPTIONS
+	$(FRAMEWORK_NAME)_TARGET_CFLAGS = -I/mingw64/x86_64-w64-mingw32/include/ddk
+	$(FRAMEWORK_NAME)_TARGET_CCFLAGS = -I/mingw64/x86_64-w64-mingw32/include/ddk -fexceptions
+	$(FRAMEWORK_NAME)_TARGET_OBJCFLAGS = -I/mingw64/x86_64-w64-mingw32/include/ddk -fobjc-exceptions -fexceptions
+	$(FRAMEWORK_NAME)_TARGET_OBJCCFLAGS = -I/mingw64/x86_64-w64-mingw32/include/ddk -fobjc-exceptions -fexceptions
+    $(FRAMEWORK_NAME)_TARGET_LDFLAGS = -pthread  -fexceptions
 endif
 
 # Framework preprocessor, compiler and linker flags and include directories
