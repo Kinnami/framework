@@ -232,8 +232,8 @@ extern NSString* const kGMUserFileSystemContextProcessIDKey GM_AVAILABLE(3_5);
 extern NSString* const kGMUserFileSystemErrorDomain GM_AVAILABLE(2_0);
 
 /*! 
- * @abstract Key in notification dictionary for mount path
- * @discussion The value will be an NSString that is the mount path.
+ * @abstract Key in notification dictionary for mountpoint path
+ * @discussion The value will be an NSString that is the mountpoint path.
  */
 extern NSString* const kGMUserFileSystemMountPathKey GM_AVAILABLE(2_0);
 

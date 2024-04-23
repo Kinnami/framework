@@ -159,14 +159,14 @@ GM_EXPORT NSString* const kGMUserFileSystemWeblocURLKey = @"kGMUserFileSystemWeb
 static const double kNanoSecondsPerSecond = 1000000000.0;
 
 typedef enum {
-  // Unable to unmount a dead FUSE files system located at mount point.
+  // Unable to unmount a dead FUSE files system located at mountpoint.
   GMUserFileSystem_ERROR_UNMOUNT_DEADFS = 1000,
   
   // Gave up waiting for system removal of existing dir in /Volumes/x after 
   // unmounting a dead FUSE file system.
   GMUserFileSystem_ERROR_UNMOUNT_DEADFS_RMDIR = 1001,
   
-  // The mount point did not exist, and we were unable to mkdir it.
+  // The mountpoint did not exist, and we were unable to mkdir it.
   GMUserFileSystem_ERROR_MOUNT_MKDIR = 1002,
   
   // fuse_main returned while trying to mount and don't know why.
@@ -226,20 +226,19 @@ static int	Unmount (NSArray * a_poaoArgs)
       iErrno = 0;
       break;
       }
-    case 1:										/* Linux: /bin/umount returns 1 when not mounted. CJEC, 13-Oct-20: TODO: What about OS X/Darwin and FreeBSD? */
+    case 1:									/* Linux: /bin/umount returns 1 when not mounted. CJEC, 13-Oct-20: TODO: What about OS X/Darwin and FreeBSD? */
     	{
       iErrno = EINVAL;
       break;
       }
-	case 32:  // On Android, /bin/umount returns 32 when not mounted.
+    case 32:									// On Android, /bin/umount returns 32 when not mounted.
       {
-	iErrno = EINVAL;
-	break;
+      iErrno = EINVAL;
+      break;
       }
-	
     default:
-    	{
-      NSLog (@"Fuse: FATAL ERROR: UNEXPECTED: '%@': exit code %i. Returning EPERM", poszUnmount, iExitCode);
+      {
+      NSLog (@"fuse: FATAL ERROR: UNEXPECTED: '%@': Exit Code %i. Returning EPERM", poszUnmount, iExitCode);
       iErrno = EPERM;					/* Use an errno value that cann't be handled and generates an error */
       break;
       }
@@ -310,7 +309,7 @@ static int	Unmount (NSArray * a_poaoArgs)
   for (unsigned int i = 0; i < sizeof(deprecatedMethods) / sizeof(SEL); ++i) {
     SEL sel = deprecatedMethods[i];
     if ([delegate_ respondsToSelector:sel]) {
-      NSLog(@"Fuse: WARNING: GMUserFileSystem delegate implements deprecated "
+      NSLog(@"fuse: WARNING: GMUserFileSystem delegate implements deprecated "
             @"selector: %@", NSStringFromSelector(sel));
     }
   }
@@ -473,7 +472,7 @@ static int	Unmount (NSArray * a_poaoArgs)
     Unmount (args);
   }
   else
-  	NSLog (@"Fuse: ERROR: File system '%@' is not mounted IN %@", [internal_ mountPath], self);
+  	NSLog (@"fuse: ERROR: File system mountpoint '%@' is not mounted IN %@", [internal_ mountPath], self);
 }
 
 - (BOOL)invalidateItemAtPath:(NSString *)path error:(NSError **)error {
@@ -495,7 +494,7 @@ static int	Unmount (NSArray * a_poaoArgs)
 #else
 			/* CJEC, 18-Dec-20: TODO: Implement -[GMUserFileSystem invalidateItemAtPath: error:] on non OS X/Darwin platforms
       */
-      NSLog (@"Fuse: ERROR: UNIMPLEMENTED: fuse_invalidate_path(). Returning ENOTSUP IN %@", self);
+      NSLog (@"fuse: ERROR: UNIMPLEMENTED: fuse_invalidate_path() for path '%@'. Returning ENOTSUP IN %@", path, self);
 		  ret = -ENOTSUP;
 #endif	/* defined (__APPLE__) */
     }
@@ -539,6 +538,8 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
                     &handShakeComplete);
     if (ret == 0 && handShakeComplete) {
       [internal_ setStatus:GMUserFileSystem_MOUNTED];
+#else
+  (void) fileDescriptor;                /* Avoid unused parameter compiler warning */
 #endif	/* defined (__APPLE__) */
 
       // Successfully mounted, so post notification.
@@ -555,7 +556,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
     }
     else
       if (ret < 0)
-        NSLog (@"Fuse: ERROR: ioctl (FUSEDEVIOCGETHANDSHAKECOMPLETE %lu) FAILED. errno %i, %s IN %@", FUSEDEVIOCGETHANDSHAKECOMPLETE, errno, strerror (errno), self);
+        NSLog (@"fuse: ERROR: ioctl (FUSEDEVIOCGETHANDSHAKECOMPLETE %lu) FAILED. errno %i, %s IN %@", FUSEDEVIOCGETHANDSHAKECOMPLETE, errno, strerror (errno), self);
     usleep(kWaitForMountUSleepInterval);
   }
   
@@ -610,7 +611,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
     }
   }
   // For Fuse for OS X/Darwin:
-  // The mount point won't actually show up until this winds its way
+  // The mountpoint won't actually show up until this winds its way
   // back through the kernel after this routine returns. In order to post
   // the kGMUserFileSystemDidMount notification we start a new thread that will
   // poll until it is mounted.
@@ -1021,13 +1022,13 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
     stbuf->st_mtim.tv_nsec = t_nsec;
     stbuf->st_atim = stbuf->st_mtim;  // Default to mtime
     stbuf->st_ctim = stbuf->st_mtim;  // Default to mtime
-//    NSLog (@"Fuse: DEBUG: %s, %s{%u}: NSModificationDate %@, timespec %lu,%lu for path '%@' IN %@", __PRETTY_FUNCTION__, __FILE__, __LINE__, [attributes objectForKey: NSFileModificationDate], stbuf -> st_mtim.tv_sec, stbuf -> st_mtim.tv_nsec, path, self);
+//    NSLog (@"fuse: DEBUG: %s, %s{%u}: NSModificationDate %@, timespec %lu,%lu for path '%@' IN %@", __PRETTY_FUNCTION__, __FILE__, __LINE__, [attributes objectForKey: NSFileModificationDate], stbuf -> st_mtim.tv_sec, stbuf -> st_mtim.tv_nsec, path, self);
 #else
     stbuf->st_mtimespec.tv_sec = t_sec;
     stbuf->st_mtimespec.tv_nsec = t_nsec;
     stbuf->st_atimespec = stbuf->st_mtimespec;  // Default to mtime
     stbuf->st_ctimespec = stbuf->st_mtimespec;  // Default to mtime
-//    NSLog (@"Fuse: DEBUG: %s, %s{%u}: NSModificationDate %@, timespec %lu,%lu for path '%@' IN %@", __PRETTY_FUNCTION__, __FILE__, __LINE__, [attributes objectForKey: NSFileModificationDate], stbuf -> st_mtimespec.tv_sec, stbuf -> st_mtimespec.tv_nsec, path, self);
+//    NSLog (@"fuse: DEBUG: %s, %s{%u}: NSModificationDate %@, timespec %lu,%lu for path '%@' IN %@", __PRETTY_FUNCTION__, __FILE__, __LINE__, [attributes objectForKey: NSFileModificationDate], stbuf -> st_mtimespec.tv_sec, stbuf -> st_mtimespec.tv_nsec, path, self);
 #endif	/* defined (__linux__) */
   }
   NSDate* adate = [attributes objectForKey:kGMUserFileSystemFileAccessDateKey];
@@ -1086,7 +1087,7 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   NSNumber* size = [attributes objectForKey:NSFileSize];
   if (size) {
     stbuf->st_size = [size longLongValue];
-//    NSLog (@"Fuse: DEBUG: %s, %s{%u}: NSFileSize %@, file size %llu for path '%@' IN %@", __PRETTY_FUNCTION__, __FILE__, __LINE__, [attributes objectForKey: NSFileSize], (unsigned long long) stbuf -> st_size, path, self);
+//    NSLog (@"fuse: DEBUG: %s, %s{%u}: NSFileSize %@, file size %llu for path '%@' IN %@", __PRETTY_FUNCTION__, __FILE__, __LINE__, [attributes objectForKey: NSFileSize], (unsigned long long) stbuf -> st_size, path, self);
   }
 
   // Set the number of blocks used so that Finder will display size on disk 
@@ -1921,18 +1922,18 @@ static void* fusefm_init(struct fuse_conn_info* conn) {
   */
 
   SET_CAPABILITY(conn, FUSE_CAP_ATOMIC_O_TRUNC, true);
-  NSLog (@"Fuse: INFORMATION: Enabled FUSE_CAP_ATOMIC_O_TRUNC");
+  NSLog (@"fuse: INFORMATION: Enabled FUSE_CAP_ATOMIC_O_TRUNC");
 
 #if !defined (__APPLE__)
   SET_CAPABILITY(conn, FUSE_CAP_BIG_WRITES, true);
-  NSLog (@"Fuse: INFORMATION: Enabled FUSE_CAP_BIG_WRITES");
+  NSLog (@"fuse: INFORMATION: Enabled FUSE_CAP_BIG_WRITES");
 #endif	/* !defined (__APPLE__) */
 
 #if defined (__linux__)
 // 	SET_CAPABILITY(conn, FUSE_CAP_SPLICE_READ, true);
-// 	NSLog (@"Fuse: INFORMATION: Enabled FUSE_CAP_SPLICE_READ");
+// 	NSLog (@"fuse: INFORMATION: Enabled FUSE_CAP_SPLICE_READ");
 	SET_CAPABILITY(conn, FUSE_CAP_SPLICE_WRITE, true);
-	NSLog (@"Fuse: INFORMATION: Enabled FUSE_CAP_SPLICE_WRITE");
+	NSLog (@"fuse: INFORMATION: Enabled FUSE_CAP_SPLICE_WRITE");
 #endif	/* defined (__linux__) */
 
   [pool release];
@@ -2857,7 +2858,7 @@ static struct fuse_operations fusefm_oper = {
   [center postNotificationName:kGMUserFileSystemMountFailed object:self
                       userInfo:userInfo];
 #if !defined (__APPLE__)
-  NSLog (@"Fuse: ERROR: Mount FAILED. %@ %@ IN %@", error, userInfo, self);			/* Also log it, in case we're not using NSNotificationCenter (EG because we're not using NSApplication, which on GNUstep requires a GUI application) */
+  NSLog (@"fuse: ERROR: Mount FAILED. %@ %@ IN %@", error, userInfo, self);			/* Also log it, in case we're not using NSNotificationCenter (EG because we're not using NSApplication, which on GNUstep requires a GUI application) */
 #endif	/* !defined (__APPLE__) */
 }
 
@@ -2873,7 +2874,7 @@ static struct fuse_operations fusefm_oper = {
 	BOOL fNotMounted	= YES;
   int  iErrno;
 
-  // Maybe there is a dead FUSE file system stuck on our mount point?
+  // Maybe there is a dead FUSE file system stuck on our mountpoint?
   struct statfs statfs_buf;
   memset(&statfs_buf, 0, sizeof(statfs_buf));
   int ret = statfs([[internal_ mountPath] UTF8String], &statfs_buf);
@@ -2891,9 +2892,9 @@ static struct fuse_operations fusefm_oper = {
       fNotMounted = iErrno == 0;
 #else
 #if defined (__FreeBSD__)
-		/* CJEC, 18-Dec-20: TODO: Determine whether the mount point is a deadfs
+		/* CJEC, 18-Dec-20: TODO: Determine whether the mountpoint is a deadfs
     */
-    NSLog (@"Fuse: WARNING: UNIMPLEMENTED: Determine deadfs at mountpoint. Attempting dismount anyway. Ignore possible subsequent error IN %@", self);
+    NSLog (@"fuse: WARNING: UNIMPLEMENTED: Cannot determine 'dead?' file system at mountpoint '%@'. Attempting dismount anyway. Ignore possible subsequent error IN %@", [internal_ mountPath], self);
       {
 //    ret = unmount([[internal_ mountPath] UTF8String], 0);	/* https://www.man7.org/linux/man-pages/man2/umount.2.html */
 //    iErrno = ret < 0 ? errno : 0;
@@ -2902,21 +2903,21 @@ static struct fuse_operations fusefm_oper = {
       fNotMounted = (iErrno == 0) || (iErrno == EINVAL);	/* unmount(2) returns EINVAL if not in the mount table */
 #else
 #if defined (__linux__)
-		/* CJEC, 18-Dec-20: TODO: Determine whether the mount point is a deadfs
+		/* CJEC, 18-Dec-20: TODO: Determine whether the mountpoint is a deadfs
     */
-    NSLog (@"Fuse: WARNING: UNIMPLEMENTED: Determine deadfs at mountpoint. Attempting dismount anyway. Ignore possible subsequent error IN %@", self);
+    NSLog (@"fuse: WARNING: UNIMPLEMENTED: Cannot determine 'dead?' file system at mountpoint '%@'. Attempting dismount anyway. Ignore possible subsequent error IN %@", [internal_ mountPath], self);
       {
 //    ret = umount2([[internal_ mountPath] UTF8String], 0);	/* https://www.man7.org/linux/man-pages/man2/umount.2.html */
 //    iErrno = ret < 0 ? errno : 0;
       NSArray* args = [NSArray arrayWithObjects:@"-v", [internal_ mountPath], nil];
       iErrno = Unmount (args);	/* Can't use unmount(2) without root priviledge */
-      fNotMounted = (iErrno == 0) || (iErrno == EINVAL);	/* unmount2(2) returns EINVAL if not a mount point (among other reasons) */
+      fNotMounted = (iErrno == 0) || (iErrno == EINVAL);	/* unmount2(2) returns EINVAL if not a mountpoint (among other reasons) */
 #endif	/* defined (__linux__) */
 #endif	/* defined (__FreeBSD__) */
 #endif	/* defined (__APPLE__) */
 
       if (iErrno != 0) {
-        NSString* description = [NSString stringWithFormat: @"Unable to dismount an existing 'dead?' file system at '%@'. errno %i, %s", [internal_ mountPath], iErrno, strerror (iErrno)];
+        NSString* description = [NSString stringWithFormat: @"Unable to dismount an existing 'dead?' file system at mountpoint '%@'. errno %i, %s", [internal_ mountPath], iErrno, strerror (iErrno)];
         NSDictionary* userInfo =
           [NSDictionary dictionaryWithObjectsAndKeys:
            description, NSLocalizedDescriptionKey,
@@ -2926,7 +2927,7 @@ static struct fuse_operations fusefm_oper = {
                                              code:GMUserFileSystem_ERROR_UNMOUNT_DEADFS
                                          userInfo:userInfo];
         if (fNotMounted)
-          NSLog (@"Fuse: WARNING: %@", description);
+          NSLog (@"fuse: WARNING: %@", description);
         else
           {
           [self postMountError:error];
@@ -2973,7 +2974,7 @@ static struct fuse_operations fusefm_oper = {
     }
   }
 
-  // Check mount path as necessary.
+  // Check mountpoint path as necessary.
   struct stat stat_buf;
   memset(&stat_buf, 0, sizeof(stat_buf));
   ret = stat([[internal_ mountPath] UTF8String], &stat_buf);
@@ -2984,14 +2985,17 @@ static struct fuse_operations fusefm_oper = {
     return;
   }
 
-  // Trigger initialization of NSFileManager. This is rather lame, but if we
+  // On OS X/Darwin, trigger initialization of NSFileManager for '/Volumes'.
+  // This is rather lame, but if we
   // don't call directoryContents before we mount our FUSE filesystem and 
   // the filesystem uses NSFileManager we may deadlock. It seems that the
   // NSFileManager class will do lazy init and will query all mounted
   // filesystems. This leads to deadlock when we re-enter our mounted FUSE file
   // system. Once initialized it seems to work fine.
+  // On other platforms, do the same thing in the mountpoint's parent directory
+  // in case the same problem occurs.
   NSFileManager* fileManager = [[NSFileManager alloc] init];
-  [fileManager contentsOfDirectoryAtPath:@"/Volumes" error:NULL];
+  [fileManager contentsOfDirectoryAtPath: [[internal_ mountPath] stringByDeletingLastPathComponent] error: NULL];
   [fileManager release];
 
   NSMutableArray* arguments = 
@@ -3022,9 +3026,9 @@ static struct fuse_operations fusefm_oper = {
     [[internal_ delegate] willMount];
   }
   [pool release];
-  NSLog(@"Starting fuse_main");
+  NSLog (@"fuse: Starting fuse_main()");
   ret = fuse_main(argc, (char **)argv, &fusefm_oper, self);
-  NSLog(@"Ending fuse_main");
+  NSLog (@"fuse: Ending fuse_main(). Return Code 0x%8.8X, %d", ret, ret);
 
   pool = [[NSAutoreleasePool alloc] init];
 
@@ -3032,9 +3036,12 @@ static struct fuse_operations fusefm_oper = {
     // If we returned from fuse_main while we still think we are 
     // mounting then an error must have occurred during mount.
     NSString* description = [NSString stringWithFormat:@
-      "Internal FUSE error (rc=%d) while attempting to mount the file system. "
-      "For now, the best way to diagnose is to look for error messages using "
-      "Console.", ret];
+      "Internal FUSE error (rc=%d) while attempting to mount the file system mountpoint '%@'. Note: EPERM == %u. "
+      "Common problems are EPERM because 'allow_other' is not enabled, or on Linux, EPERM because the mountpoint is not empty. "
+      "Unfortunately, the mount program does not log the reason for an error. "
+      "For now, the best way to diagnose faults is to look for messages in the log prefixed with 'fuse:'. "
+      "On macOS, the Console application is useful for searching large files with a .log suffix. "
+      "On other UNIX, use grep or similar. ", EPERM, [internal_ mountPath], ret];
     NSDictionary* userInfo =
     [NSDictionary dictionaryWithObjectsAndKeys:
      description, NSLocalizedDescriptionKey,
