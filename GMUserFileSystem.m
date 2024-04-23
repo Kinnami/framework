@@ -441,6 +441,16 @@ static int	Unmount (NSArray * a_poaoArgs)
         withOptions:(NSArray *)options
    shouldForeground:(BOOL)shouldForeground
     detachNewThread:(BOOL)detachNewThread {
+  NSFileManager *	poFileManager = [[[NSFileManager alloc] init] autorelease];
+  NSError *				poError = nil;
+  NSArray *				poaoszPathsMountPoint = [poFileManager contentsOfDirectoryAtPath: mountPath error: &poError];
+
+	if (poaoszPathsMountPoint == nil)
+  	NSLog (@"fuse: ERROR: Could not read directory at file system mountpoint '%@'. Error %@. UserInfo %@ IN %@", [internal_ mountPath], poError, [poError userInfo], self);
+  else
+  	if ([poaoszPathsMountPoint count] > 0)
+	  	NSLog (@"fuse: WARNING: File system mountpoint '%@' is not empty. The mount operation may fail. Trying anyway. Mountpoint contents %@ IN %@", mountPath, poaoszPathsMountPoint, self);
+
   [internal_ setMountPath:mountPath];
   NSMutableArray* optionsCopy = [NSMutableArray array];
   for (NSUInteger i = 0; i < [options count]; ++i) {
@@ -2858,7 +2868,7 @@ static struct fuse_operations fusefm_oper = {
   [center postNotificationName:kGMUserFileSystemMountFailed object:self
                       userInfo:userInfo];
 #if !defined (__APPLE__)
-  NSLog (@"fuse: ERROR: Mount FAILED. %@ %@ IN %@", error, userInfo, self);			/* Also log it, in case we're not using NSNotificationCenter (EG because we're not using NSApplication, which on GNUstep requires a GUI application) */
+  NSLog (@"fuse: ERROR: Mount FAILED. Error %@. UserInfo %@ IN %@", error, userInfo, self);			/* Also log it, in case we're not using NSNotificationCenter (EG because we're not using NSApplication, which on GNUstep requires a GUI application) */
 #endif	/* !defined (__APPLE__) */
 }
 
@@ -2894,7 +2904,7 @@ static struct fuse_operations fusefm_oper = {
 #if defined (__FreeBSD__)
 		/* CJEC, 18-Dec-20: TODO: Determine whether the mountpoint is a deadfs
     */
-    NSLog (@"fuse: WARNING: UNIMPLEMENTED: Cannot determine 'dead?' file system at mountpoint '%@'. Attempting dismount anyway. Ignore possible subsequent error IN %@", [internal_ mountPath], self);
+    NSLog (@"fuse: WARNING: UNIMPLEMENTED: Cannot determine 'dead?' file system at mountpoint '%@'. Attempting dismount anyway. Ignore possible subsequently logged error from the umount(8) program IN %@", [internal_ mountPath], self);
       {
 //    ret = unmount([[internal_ mountPath] UTF8String], 0);	/* https://www.man7.org/linux/man-pages/man2/umount.2.html */
 //    iErrno = ret < 0 ? errno : 0;
@@ -2905,7 +2915,7 @@ static struct fuse_operations fusefm_oper = {
 #if defined (__linux__)
 		/* CJEC, 18-Dec-20: TODO: Determine whether the mountpoint is a deadfs
     */
-    NSLog (@"fuse: WARNING: UNIMPLEMENTED: Cannot determine 'dead?' file system at mountpoint '%@'. Attempting dismount anyway. Ignore possible subsequent error IN %@", [internal_ mountPath], self);
+    NSLog (@"fuse: WARNING: UNIMPLEMENTED: Cannot determine 'dead?' file system at mountpoint '%@'. Attempting dismount anyway. Ignore possible subsequently logged error from the umount(8) program IN %@", [internal_ mountPath], self);
       {
 //    ret = umount2([[internal_ mountPath] UTF8String], 0);	/* https://www.man7.org/linux/man-pages/man2/umount.2.html */
 //    iErrno = ret < 0 ? errno : 0;
@@ -3026,9 +3036,9 @@ static struct fuse_operations fusefm_oper = {
     [[internal_ delegate] willMount];
   }
   [pool release];
-  NSLog (@"fuse: Starting fuse_main()");
+  NSLog (@"fuse: INFORMATION: Starting fuse_main() for mountpoint '%@'", [internal_ mountPath]);
   ret = fuse_main(argc, (char **)argv, &fusefm_oper, self);
-  NSLog (@"fuse: Ending fuse_main(). Return Code 0x%8.8X, %d", ret, ret);
+  NSLog (@"fuse: INFORMATION: Ended fuse_main() for mountpoint '%@'. Return Code 0x%8.8X, %d", [internal_ mountPath], ret, ret);
 
   pool = [[NSAutoreleasePool alloc] init];
 
