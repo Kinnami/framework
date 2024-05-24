@@ -78,7 +78,7 @@ $(FRAMEWORK_NAME)_CLANG_LDFLAGS = -rdynamic -pthread -fexceptions -fobjc-runtime
 # CJEC, 22-Oct-09: Note: Must use statically linked C++ libraries for
 #							Windows because we have't defined all the C++ classes as
 #							dllexport.
-#							Must use dynamically linked libraries for Darwin/OS X
+#							Must use dynamically linked libraries for OS X/Darwin
 #							because static libraries have a related visibility
 #							problem
 #
