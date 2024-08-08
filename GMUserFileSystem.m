@@ -2311,29 +2311,6 @@ static int fusefm_fallocate(const char* path, int mode, fuse_off_t offset, fuse_
   return ret;
 }
 
-#if defined (__APPLE__)
-static int fusefm_exchange(const char* p1, const char* p2, unsigned long opts) {
-
-	(void) opts;												/* Avoid unused argument compiler warning */
-
-  NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-  int ret = -ENOSYS;
-  @try {
-    NSError* error = nil;
-    GMUserFileSystem* fs = [GMUserFileSystem currentFS];
-    if ([fs exchangeDataOfItemAtPath:[NSString stringWithUTF8String:p1]
-                      withItemAtPath:[NSString stringWithUTF8String:p2]
-                               error:&error]) {
-      ret = 0;
-    } else {
-      MAYBE_USE_ERROR(ret, error);
-    }
-  }
-  @catch (id exception) { }
-  [pool release];
-  return ret;  
-}
-
 /* This method is documented in fuse.h as being required for Linux, and is probably required for others.
 		It is not used if the default_permissions mount option is set, requiring the kernel to perform access
     checks instead of the file system. However, if it is not implemented in the delegate, Linux, FreeBSD
@@ -2366,6 +2343,29 @@ static int fusefm_access (const char * a_poszPath, int a_iMode)
   return iRC;
   }
   
+#if defined (__APPLE__)
+static int fusefm_exchange(const char* p1, const char* p2, unsigned long opts) {
+
+	(void) opts;												/* Avoid unused argument compiler warning */
+
+  NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
+  int ret = -ENOSYS;
+  @try {
+    NSError* error = nil;
+    GMUserFileSystem* fs = [GMUserFileSystem currentFS];
+    if ([fs exchangeDataOfItemAtPath:[NSString stringWithUTF8String:p1]
+                      withItemAtPath:[NSString stringWithUTF8String:p2]
+                               error:&error]) {
+      ret = 0;
+    } else {
+      MAYBE_USE_ERROR(ret, error);
+    }
+  }
+  @catch (id exception) { }
+  [pool release];
+  return ret;  
+}
+
 static int fusefm_statfs_x(const char* path, struct statfs* stbuf) {
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
   int ret = -ENOENT;
