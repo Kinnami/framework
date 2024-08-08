@@ -310,6 +310,24 @@ extern NSString* const kGMUserFileSystemDidUnmount GM_AVAILABLE(2_0);
  */
 - (NSArray *)contentsOfDirectoryAtPath:(NSString *)path error:(NSError **)error GM_AVAILABLE(2_0);
 
+#pragma mark Performing access checks
+
+/*!
+ * @abstract Perform an access or item existence check.
+ * @discussion
+ * Returns true if all requested permissions are granted
+ * or if the item exists and the mode is F_OK, at the specified path.
+ * @seealso man access(2)
+ * @param path The path to the item.
+ * @param mode The requested permission (a mask consisting of the bitwise OR
+ * of one or more of R_OK, W_OK, and X_OK) or F_OK for existence only.
+ * @param error Should be filled with a POSIX error in case of failure.
+ * @result YES if the check was successful.
+ */
+- (BOOL)	accessCheckOfItemAtPath:(NSString *)path
+                                   mode: (int)mode
+                                   error:(NSError **)error GM_AVAILABLE(2_0);
+
 #pragma mark Getting and Setting Attributes
 
 /*!

@@ -238,7 +238,7 @@ static int	Unmount (NSArray * a_poaoArgs)
       }
     default:
       {
-      NSLog (@"fuse: FATAL ERROR: UNEXPECTED: '%@': Exit Code %i. Returning EPERM", poszUnmount, iExitCode);
+      NSLog (@"fuse: FATAL ERROR: UNEXPECTED: '%@': Exit Code 0x%8.8X, %i. Returning EPERM 0x%8.8X, %u", poszUnmount, iExitCode, iExitCode, EPERM, EPERM);
       iErrno = EPERM;					/* Use an errno value that cann't be handled and generates an error */
       break;
       }
@@ -1536,6 +1536,27 @@ static const int kWaitForMountUSleepInterval = 100000;  // 100 ms
   return NO;
 }
 
+#pragma mark Performing access checks
+
+- (BOOL)	accessCheckOfItemAtPath:(NSString *)path
+                                   mode: (int)mode
+                                   error:(NSError **)error
+	{
+#if defined (__APPLE__)
+  if (OSXFUSE_OBJC_DELEGATE_ENTRY_ENABLED()) {
+    NSString* traceinfo = 
+      [NSString stringWithFormat:@"%@, mode=%i", path, mode];
+    OSXFUSE_OBJC_DELEGATE_ENTRY(DTRACE_STRING(traceinfo));
+  }
+#endif	/* defined (__APPLE__) */
+
+  if ([[internal_ delegate] respondsToSelector:@selector(accessCheckOfItemAtPath: mode: error:)]) {
+    return [[internal_ delegate] accessCheckOfItemAtPath: path mode: mode error: error];
+  }
+  *error = [GMUserFileSystem errorWithCode:ENOSYS];
+  return NO;
+  }	
+
 #pragma mark Getting and Setting Attributes
 
 - (NSDictionary *)attributesOfFileSystemForPath:(NSString *)path
@@ -2313,6 +2334,38 @@ static int fusefm_exchange(const char* p1, const char* p2, unsigned long opts) {
   return ret;  
 }
 
+/* This method is documented in fuse.h as being required for Linux, and is probably required for others.
+		It is not used if the default_permissions mount option is set, requiring the kernel to perform access
+    checks instead of the file system. However, if it is not implemented in the delegate, Linux, FreeBSD
+    and OS X/Darwin all seem to do the right thing.
+    It must be implemented for the delegate file system to have the opportunity to check permissions,
+    and create audit records for example.
+*/
+static int fusefm_access (const char * a_poszPath, int a_iMode)
+	{
+  NSAutoreleasePool *	poAutoReleasePool;
+	NSError * 					poError;
+  GMUserFileSystem *	poUserFileSystem;
+  int									iRC;
+
+  poAutoReleasePool = [[NSAutoreleasePool alloc] init];
+  poError = nil;
+	iRC = -ENOENT;
+  @try
+  	{
+		poUserFileSystem = [GMUserFileSystem currentFS];
+    if ([poUserFileSystem accessCheckOfItemAtPath: [NSString stringWithUTF8String: a_poszPath] mode: a_iMode error: &poError])
+    	iRC = 0;													/* Success */
+    else
+      MAYBE_USE_ERROR(iRC, poError);
+		}
+  @catch (id exception)
+  	{
+    }
+  [poAutoReleasePool release];
+  return iRC;
+  }
+  
 static int fusefm_statfs_x(const char* path, struct statfs* stbuf) {
   NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
   int ret = -ENOENT;
@@ -2781,7 +2834,10 @@ static int fusefm_removexattr(const char *path, const char *name) {
 static struct fuse_operations fusefm_oper = {
   .init = fusefm_init,
   .destroy = fusefm_destroy,
-  
+
+	// Permissions check
+  .access = fusefm_access,
+    
   // Creating an Item
   .mkdir = fusefm_mkdir,
   .create = fusefm_create,
