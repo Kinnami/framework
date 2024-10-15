@@ -36,9 +36,9 @@ $(FRAMEWORK_NAME)_NEEDS_GUI	= no
 #			destroyed. Otherwise, the behaviour is "undefined".
 #			See http://www.gotw.ca/publications/mill18.htm Guideline #4 for an explanation
 #
-# CJEC, 29-Oct-09: When compiling Objective C++, always call C++ constructors and
-#			destructors during Objective C object creation and deletion so that
-#			C++ member objects in Objective C classes with virtual functions work
+# CJEC, 29-Oct-09: When compiling Objective-C++, always call C++ constructors and
+#			destructors during Objective-C object creation and deletion so that
+#			C++ member objects in Objective-C classes with virtual functions work
 #			properly
 #			See http://gcc.gnu.org/onlinedocs/gcc-4.4.2/gcc/Objective_002dC-and-Objective_002dC_002b_002b-Dialect-Options.html#Objective_002dC-and-Objective_002dC_002b_002b-Dialect-Options
 #			for details
@@ -64,7 +64,7 @@ $(FRAMEWORK_NAME)_GCC_OBJCCFLAGS = -Wno-unknown-pragmas
 $(FRAMEWORK_NAME)_GCC_LDFLAGS =
 
 # Enabled when $(FRAMEWORK_NAME)_USING_CLANG is true
-# Note: C++ & Objective C exceptions and blocks are always enabled when building with clang
+# Note: C++ & Objective-C exceptions and blocks are always enabled when building with clang
 #
 $(FRAMEWORK_NAME)_CLANG_CPPFLAGS = -D_NATIVE_OBJC_EXCEPTIONS
 $(FRAMEWORK_NAME)_CLANG_CFLAGS = -Wno-unknown-warning-option -Wno-nonportable-include-path
@@ -83,18 +83,18 @@ $(FRAMEWORK_NAME)_CLANG_LDFLAGS = -rdynamic -pthread -fexceptions -fobjc-runtime
 #							problem
 #
 # CJEC, 15-Jul-20: TODO: On Windows7+ 64-bit with clang and libobjc4 (the GNUstep 2.0
-#							Objective C runtime library labelled libobjc2 at Github,)
+#							Objective-C runtime library labelled libobjc2 at Github,)
 #							the above is almost certainly not what we want.
 #							We should use dynamic linking whereever possible in case
 #							the category problem also exists for GNUstep
 #
 # CJEC, 19-Jan-10: Note: Must use dynamic linked libraries for all
-#							Objective C libraries otherwise categories don't work as
-#							they won't be demand-loaded by the Objective C runtime.
+#							Objective-C libraries otherwise categories don't work as
+#							they won't be demand-loaded by the Objective-C runtime.
 #							Consequently, only C++ libraries can be built statically
 #							if desired
 #
-# CJEC, 15-Jul-20: Note: When using clang & libobjc4 (the GNUstep 2.0 Objective C runtime
+# CJEC, 15-Jul-20: Note: When using clang & libobjc4 (the GNUstep 2.0 Objective-C runtime
 #							library labelled libobjc2 at Github,) need to include libdispatch
 #
 # CJEC, 16-Dec-21: TODO: WindowsXP, WindowsVista were built using MSYS/MinGW32 and have not (yet)
@@ -214,7 +214,7 @@ $(FRAMEWORK_NAME)_HEADER_FILES 		= OSXFUSE.h \
 # 	might be installed at the same time.
 #$(FRAMEWORK_NAME)_HEADER_FILES_INSTALL_DIR	=
 
-# Framework Objective C files
+# Framework Objective-C files
 $(FRAMEWORK_NAME)_OBJC_FILES 	= GMDataBackedFileDelegate.m \
 									GMFinderInfo.m \
 									GMResourceFork.m \

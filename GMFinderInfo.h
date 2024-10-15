@@ -78,7 +78,7 @@ GM_EXPORT_INTERFACE	@interface GMFinderInfo : NSObject {
   OSType creatorCode_;
 }
 
-/*! @abstract Returns an autorleased GMFinderInfo */
+/*! @abstract Returns an autoreleased GMFinderInfo */
 + (GMFinderInfo *)finderInfo GM_AVAILABLE(2_0);
 
 /*! 
