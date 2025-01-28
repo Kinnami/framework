@@ -1924,25 +1924,30 @@ static void* fusefm_init(struct fuse_conn_info* conn) {
   @catch (id exception) { }
 
 #if defined (__APPLE__)
+	/* See https://github.com/macfuse/macfuse/wiki/Declaring-File-System-Capabilities
+  		for all FUSE_CAP_* capabilities supported by the latest version of OSXFUSE/macFUSE.
+      
+     Note: Not all of these documented capabilities are available on OSXFUSE 3.8.3.
+     
+     CJEC, 8-Dec-24: TODO: Add more OSX/Darwin specific capabilities to this OSXFUSE
+     													fork used by AmiShare.
+  */
   SET_CAPABILITY(conn, FUSE_CAP_ALLOCATE, [fs enableAllocate]);
+  NSLog (@"fuse: INFORMATION: Enabled FUSE_CAP_ALLOCATE");
   SET_CAPABILITY(conn, FUSE_CAP_XTIMES, [fs enableExtendedTimes]);
+  NSLog (@"fuse: INFORMATION: Enabled FUSE_CAP_XTIMES");
   SET_CAPABILITY(conn, FUSE_CAP_VOL_RENAME, [fs enableSetVolumeName]);
+  NSLog (@"fuse: INFORMATION: Enabled FUSE_CAP_VOL_RENAME");
   SET_CAPABILITY(conn, FUSE_CAP_CASE_INSENSITIVE, ![fs enableCaseSensitiveNames]);
+  NSLog (@"fuse: INFORMATION: Enabled FUSE_CAP_CASE_INSENSITIVE");
   SET_CAPABILITY(conn, FUSE_CAP_EXCHANGE_DATA, [fs enableExchangeData]);
+  NSLog (@"fuse: INFORMATION: Enabled FUSE_CAP_EXCHANGE_DATA");
 #else
    (void) conn;										/* Avoid unused argument compiler warning */
 #endif	/* defined (__APPLE__) */
 
-	/* CJEC, 9-Jul-19: Enable atomic O_TRUNC support in open().
-  
-    	Note: Currently (OSXFUSE 3.8.3) this is not needed as -[BoxAFSFuseFD truncateToOffset: error:]
-      			provides an alternative when mounted with the "nosyncwrites" mount option. Unfortunately,
-            on Linux, this results in an intermediate 0 byte version being created, which is very
-            undesirable.
-   
-     CJEC, 12-Oct-20: TODO: Optimise. Do we need this capability for fuse on macOS, FreeBSD, etc. to
-     													avoid the double version problem?
-                              Also, what about the other generic capabilities? FUSE_CAP_BIG_WRITES in
+	/* 
+     CJEC, 12-Oct-20: TODO: Optimise. Do we need the other generic capabilities? FUSE_CAP_BIG_WRITES in
                               particular looks desirable on all platforms, and FUSE_CAP_SPLICE_WRITE &
                               FUSE_CAP_SPLICE_READ look useful on Linux. (splice(2) is Linux-specific.)
    														FUSE_CAP_BIG_WRITES is ignored in OS X/Darwin and is not referenced in the
