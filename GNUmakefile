@@ -103,6 +103,15 @@ $(FRAMEWORK_NAME)_CLANG_LDFLAGS = -rdynamic -pthread -fexceptions -fobjc-runtime
 #							Windows7 should be supported by MSYS2/MinGW64-w64 but the older
 #							MSYS2/MinGW32 build settings have not been upgraded yet.
 #
+# Note: clang, ld.gold are now badly broken on Raspbian PiOS Linux 32-bit mode. Use ld.lld with clang or gcc.
+# Note: Debian 13 has deprecated the ld.gold linker in favour of the LLVM linker ld.lld
+# Try to use the AMISHARE_TARGET_LD value to identify it.
+# Without a value for AMISHARE_TARGET_LD:
+#	Ubuntu 18.04 aarch64 on NVIDIA Jetson Nano may not build properly. ld.gold does not work. Must use default
+#	linker, ld.bfd
+#	Debian 13 on 64-bit platforms may not build properly: ld.gold has been deprecated. Must use ld.lld
+#	Rasbian 12, 13 on 32-bit and 64-bit platforms may not build properly. ld.gold does not work. Must use ld.lld
+# See also gnustep-config --variable=LDFLAGS
 # Determine the compiler from how GNUstep was built. See gnustep-config --variable=CC
 ifeq ($(CC), gcc)
 	$(FRAMEWORK_NAME)_USING_CLANG = 0
@@ -112,7 +121,11 @@ ifeq ($(CC), gcc)
 	$(FRAMEWORK_NAME)_TARGET_CCFLAGS =
 	$(FRAMEWORK_NAME)_TARGET_OBJCFLAGS =
 	$(FRAMEWORK_NAME)_TARGET_OBJCCFLAGS =
-	$(FRAMEWORK_NAME)_TARGET_LDFLAGS =
+	ifeq ($AMISHARE_TARGET_LD),)
+		$(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=bfd
+	else
+		$(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=$(AMISHARE_TARGET_LD)
+	endif
 else
 	$(FRAMEWORK_NAME)_USING_CLANG = 1
 	$(FRAMEWORK_NAME)_USING_GCC = 0
@@ -121,7 +134,11 @@ else
 	$(FRAMEWORK_NAME)_TARGET_CCFLAGS =
 	$(FRAMEWORK_NAME)_TARGET_OBJCFLAGS =
 	$(FRAMEWORK_NAME)_TARGET_OBJCCFLAGS =
-	$(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=$(BASE_USR_DIR)/usr/bin/ld.gold
+	ifeq ($AMISHARE_TARGET_LD),)
+		$(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=gold
+	else
+		$(FRAMEWORK_NAME)_TARGET_LDFLAGS = -fuse-ld=$(AMISHARE_TARGET_LD)
+	endif
 endif
 
 # Identify platform-specific options
